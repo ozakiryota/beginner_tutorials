@@ -4,6 +4,8 @@ project(beginner_tutorials)
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
+add_definitions(-std=c++11)	#For "std::random_devise"
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -14,7 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 find_package(Eigen3 REQUIRED)
-
+find_package(PCL REQUIRED)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -121,6 +123,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -208,6 +211,13 @@ add_executable(test_eigen src/test_eigen.cpp)
 target_link_libraries(test_eigen ${catkin_LIBRARIES})
 add_dependencies(test_eigen beginner_tutorials_generate_messages_cpp)
 
-add_executable(kf src/kf.cpp)
-target_link_libraries(kf ${catkin_LIBRARIES})
-add_dependencies(kf beginner_tutorials_generate_messages_cpp)
+#add_executable(kf src/kf.cpp)
+#target_link_libraries(kf ${catkin_LIBRARIES})
+#add_dependencies(kf beginner_tutorials_generate_messages_cpp)
+
+add_executable(imu_test src/imu_test.cpp)
+target_link_libraries(imu_test ${catkin_LIBRARIES})
+add_executable(lidar_sub src/lidar_sub.cpp)
+target_link_libraries(lidar_sub ${catkin_LIBRARIES})
+add_executable(test_flann src/test_flann.cpp)
+target_link_libraries(test_flann ${catkin_LIBRARIES} ${PCL_LIBRARIES})

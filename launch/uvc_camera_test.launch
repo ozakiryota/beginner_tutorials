@@ -1,0 +1,3 @@
+<launch>
+	<rosparam command="load" uvc_camera/devise="/dev/video1"/>
+</launch>
