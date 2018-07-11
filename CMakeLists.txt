@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(beginner_tutorials)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 add_definitions(-std=c++11)	#For "std::random_devise"
 
@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -125,6 +126,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
 )
+include_directories(/usr/include)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -220,4 +222,4 @@ target_link_libraries(imu_test ${catkin_LIBRARIES})
 add_executable(lidar_sub src/lidar_sub.cpp)
 target_link_libraries(lidar_sub ${catkin_LIBRARIES})
 add_executable(test_flann src/test_flann.cpp)
-target_link_libraries(test_flann ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(test_flann ${catkin_LIBRARIES} ${PCL_LIBRARIES} hdf5)

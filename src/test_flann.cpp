@@ -8,25 +8,26 @@
 #include <pcl/point_types.h>
 #include <pcl/visualization/cloud_viewer.h>
 
+#include <flann/flann.hpp>
+#include <flann/io/hdf5.h>
 
-void randomize_points(std::vector<geometry_msgs::Point>& points, int n)
+void randomize_cloud(pcl::PointCloud<pcl::PointXYZ>& cloud, int n)
 {
 	std::random_device rnd;
 	std::mt19937 mt(rnd());
 	std::uniform_real_distribution<float> rnd_10(-10, 10);
-
+	
 	for(int i=0;i<n;i++){
-		geometry_msgs::Point p;
-		p.x = rnd_10(mt);
-		p.y = rnd_10(mt);
-		p.z = rnd_10(mt);
-		points.push_back(p);
+		cloud.points[i].x = rnd_10(mt);
+		cloud.points[i].y = rnd_10(mt);
+		cloud.points[i].z = rnd_10(mt);
 	}
+	std::cout << "Randomized cloud" << std::endl;
 }
 
-void print_points(std::vector<geometry_msgs::Point>& points, int n)
+void print_cloud(pcl::PointCloud<pcl::PointXYZ> cloud, int n)
 {
-	for(int i=0;i<n;i++)	std::cout << i << ": " << points[i].x << "," << points[i].y << "," << points[i].z << std::endl;
+	for(int i=0;i<n;i++)	std::cout << i+1 << ": " << cloud.points[i].x << "," << cloud.points[i].y << "," << cloud.points[i].z << std::endl;
 }
 
 int main(int argc, char** argv)
@@ -43,12 +44,8 @@ int main(int argc, char** argv)
 	pcl::visualization::CloudViewer viewer("Test Cloud Viewer");
 	pcl::PointCloud<pcl::PointXYZ> cloud;
 	cloud.points.resize(num_points);
-	
-	for(int i=0;i<num_points;i++){
-		cloud.points[i].x = rnd_10(mt);
-		cloud.points[i].y = rnd_10(mt);
-		cloud.points[i].z = rnd_10(mt);
-	}
+	randomize_cloud(cloud, num_points);
+	print_cloud(cloud, num_points);
 
 	while(ros::ok()){
 		viewer.showCloud(cloud.makeShared());
