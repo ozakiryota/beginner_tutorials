@@ -2,13 +2,15 @@ cmake_minimum_required(VERSION 2.8.3)
 project(beginner_tutorials)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+#add_compile_options(-std=c++11)
 
 add_definitions(-std=c++11)	#For "std::random_devise"
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+FIND_LIBRARY(FLANN_LIBRARY flann /usr/include/)
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
@@ -17,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
+find_package(HDF5 REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -125,8 +128,9 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
+  ${HDF5_INCLUDE_DIRS}
 )
-include_directories(/usr/include)
+#include_directories(/usr/include)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -221,5 +225,7 @@ add_executable(imu_test src/imu_test.cpp)
 target_link_libraries(imu_test ${catkin_LIBRARIES})
 add_executable(lidar_sub src/lidar_sub.cpp)
 target_link_libraries(lidar_sub ${catkin_LIBRARIES})
-add_executable(test_flann src/test_flann.cpp)
-target_link_libraries(test_flann ${catkin_LIBRARIES} ${PCL_LIBRARIES} hdf5)
+add_executable(test_pcl_view src/test_pcl_view.cpp)
+target_link_libraries(test_pcl_view ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(test_pcl_norm src/test_pcl_norm.cpp)
+target_link_libraries(test_pcl_norm ${catkin_LIBRARIES} ${PCL_LIBRARIES})

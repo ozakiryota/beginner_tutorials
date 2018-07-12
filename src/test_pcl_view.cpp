@@ -7,9 +7,9 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/visualization/cloud_viewer.h>
-
-#include <flann/flann.hpp>
-#include <flann/io/hdf5.h>
+#include <pcl/features/normal_3d.h>
+// #include <flann/flann.hpp>
+// #include <flann/io/hdf5.h>
 
 void randomize_cloud(pcl::PointCloud<pcl::PointXYZ>& cloud, int n)
 {
@@ -46,6 +46,8 @@ int main(int argc, char** argv)
 	cloud.points.resize(num_points);
 	randomize_cloud(cloud, num_points);
 	print_cloud(cloud, num_points);
+
+	pcl::PointCloud<pcl::Normal> normal;
 
 	while(ros::ok()){
 		viewer.showCloud(cloud.makeShared());
