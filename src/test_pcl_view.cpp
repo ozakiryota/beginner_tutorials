@@ -1,5 +1,5 @@
 /*
- *	test_flann.cpp
+ *	test_pcl_view.cpp
  */
 
 #include <ros/ros.h>

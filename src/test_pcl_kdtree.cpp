@@ -1,5 +1,5 @@
 /*
- *	test_pcl_norm.cpp
+ *	test_pcl_kdtree.cpp
  */
 
 #include <ros/ros.h>
@@ -40,6 +40,30 @@ void estimate_normal(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<
 	ne.compute(*normal);
 }
 
+void kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+{
+	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+	kdtree.setInputCloud(cloud);
+	pcl::PointXYZ searchpoint;
+	int cloud_index = 0;
+	searchpoint.x = cloud->points[cloud_index].x;
+	searchpoint.y = cloud->points[cloud_index].y;
+	searchpoint.z = cloud->points[cloud_index].z;
+
+	std::vector<int> pointIdxRadiusSearch;
+	std::vector<float> pointRadiusSquaredDistance;
+	float radius = 1.0;
+
+	if(kdtree.radiusSearch(searchpoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0){
+		for (size_t i=0;i<pointIdxRadiusSearch.size();i++){
+			std::cout << "    "  <<   cloud->points[ pointIdxRadiusSearch[i] ].x
+			<< " " << cloud->points[ pointIdxRadiusSearch[i] ].y 
+			<< " " << cloud->points[ pointIdxRadiusSearch[i] ].z 
+			<< " (squared distance: " << pointRadiusSquaredDistance[i] << ")" << std::endl;
+		}
+	}
+}
+
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "test_flann");
@@ -53,7 +77,9 @@ int main(int argc, char** argv)
 	print_cloud(cloud, num_points);
 	pcl::PointCloud<pcl::Normal>::Ptr normal (new pcl::PointCloud<pcl::Normal>);
 	estimate_normal(cloud, normal);
-	
+
+	kdtree_search(cloud);
+
 	pcl::visualization::PCLVisualizer viewer("Test Point Cloud Viewer");
 	viewer.addPointCloud(cloud, "cloud");
 	viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(cloud, normal, 10, 0.3, "normals");
