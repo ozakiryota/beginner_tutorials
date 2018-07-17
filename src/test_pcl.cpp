@@ -38,65 +38,64 @@ void estimate_normal(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<
 	ne.setSearchMethod(tree);
 	ne.setRadiusSearch(100);
 	ne.compute(*normal);
-	
-	// std::cout << normal->points[0] << std::endl;
 }
 
-std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float radius)
+std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float radius, pcl::PointXYZ searchpoint)
 {
 	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
 	kdtree.setInputCloud(cloud);
-	pcl::PointXYZ searchpoint;
-	int cloud_index = 0;
-	searchpoint.x = cloud->points[cloud_index].x;
-	searchpoint.y = cloud->points[cloud_index].y;
-	searchpoint.z = cloud->points[cloud_index].z;
-
 	std::vector<int> pointIdxRadiusSearch;
 	std::vector<float> pointRadiusSquaredDistance;
-	// float radius = 1.0;
 	kdtree.radiusSearch(searchpoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance);
 	// if(kdtree.radiusSearch(searchpoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0){
-		for (size_t i=0;i<pointIdxRadiusSearch.size();i++){
-			std::cout << "    "  <<   cloud->points[ pointIdxRadiusSearch[i] ].x
-			<< " " << cloud->points[ pointIdxRadiusSearch[i] ].y 
-			<< " " << cloud->points[ pointIdxRadiusSearch[i] ].z 
-			<< " (squared distance: " << pointRadiusSquaredDistance[i] << ")" << std::endl;
-		}
+	// 	for (size_t i=0;i<pointIdxRadiusSearch.size();i++){
+	// 		std::cout << "    "  <<   cloud->points[ pointIdxRadiusSearch[i] ].x
+	// 		<< " " << cloud->points[ pointIdxRadiusSearch[i] ].y 
+	// 		<< " " << cloud->points[ pointIdxRadiusSearch[i] ].z 
+	// 		<< " (squared distance: " << pointRadiusSquaredDistance[i] << ")" << std::endl;
+	// 	}
 	// }
 	return pointIdxRadiusSearch; 
 }
 
 void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud)
 {
-	float radius = 100.0;
-	Eigen::Vector4f plane_parameters;
-	std::vector<int> indices = kdtree_search(cloud, radius);
+	const float radius = 1.0;
 	float curvature;
-	pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
-	float sum_square_error = 0.0;
-	for(int i=0;i<indices.size();i++){
-		float square_error =	(plane_parameters[0]*cloud->points[indices[i]].x
-								+plane_parameters[1]*cloud->points[indices[i]].y
-								+plane_parameters[2]*cloud->points[indices[i]].z
-								+plane_parameters[3])
-								*(plane_parameters[0]*cloud->points[indices[i]].x
-								+plane_parameters[1]*cloud->points[indices[i]].y
-								+plane_parameters[2]*cloud->points[indices[i]].z
-								+plane_parameters[3])
-								/(plane_parameters[0]*plane_parameters[0]
-								+plane_parameters[1]*plane_parameters[1]
-								+plane_parameters[2]*plane_parameters[2]);
-		sum_square_error += square_error/indices.size();
+	int num_normals = 0;
+	for(int i=0;i<cloud->points.size();i+=10){
+		pcl::PointXYZ searchpoint;
+		searchpoint.x = cloud->points[i].x;
+		searchpoint.y = cloud->points[i].y;
+		searchpoint.z = cloud->points[i].z;
+		std::vector<int> indices = kdtree_search(cloud, radius, searchpoint);
+
+		Eigen::Vector4f plane_parameters;
+		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
+		float sum_square_error = 0.0;
+		for(int i=0;i<indices.size();i++){
+			float square_error =	(plane_parameters[0]*cloud->points[indices[i]].x
+									+plane_parameters[1]*cloud->points[indices[i]].y
+									+plane_parameters[2]*cloud->points[indices[i]].z
+									+plane_parameters[3])
+									*(plane_parameters[0]*cloud->points[indices[i]].x
+									+plane_parameters[1]*cloud->points[indices[i]].y
+									+plane_parameters[2]*cloud->points[indices[i]].z
+									+plane_parameters[3])
+									/(plane_parameters[0]*plane_parameters[0]
+									+plane_parameters[1]*plane_parameters[1]
+									+plane_parameters[2]*plane_parameters[2]);
+			sum_square_error += square_error/(float)indices.size();
+		}
+		// std::cout << "sum_square_error = " << sum_square_error << std::endl;
+		if(sum_square_error<10000){
+			planecloud->points[num_normals] = cloud->points[i];
+			normal->points[num_normals].normal_x = plane_parameters[0];
+			normal->points[num_normals].normal_y = plane_parameters[1];
+			normal->points[num_normals].normal_z = plane_parameters[2];
+			num_normals++;
+		}
 	}
-	// normal->points[0].normal_x;
-	// std::cout << sum_square_error << std::endl;
-	// std::cout << "	" << plane_parameters << std::endl;
-	
-	planecloud->points[0] = cloud->points[0];
-	normal->points[0].normal_x = plane_parameters[0];
-	normal->points[0].normal_y = plane_parameters[1];
-	normal->points[0].normal_z = plane_parameters[2];
 }
 
 int main(int argc, char** argv)
@@ -104,7 +103,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "test_flann");
 	ros::NodeHandle nh;
 	
-	const int num_points = 10;
+	const int num_points = 10000;
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	cloud->points.resize(num_points);
