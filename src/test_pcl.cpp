@@ -8,8 +8,6 @@
 #include <pcl/point_types.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/features/normal_3d.h>
-// #include <flann/flann.hpp>
-// #include <flann/io/hdf5.h>
 
 void randomize_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int n)
 {
@@ -30,15 +28,15 @@ void print_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int n)
 	for(int i=0;i<n;i++)	std::cout << i+1 << ": " << cloud->points[i].x << "," << cloud->points[i].y << "," << cloud->points[i].z << std::endl;
 }
 
-void estimate_normal(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normal)
-{
-	pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-	ne.setInputCloud (cloud);
-	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
-	ne.setSearchMethod(tree);
-	ne.setRadiusSearch(100);
-	ne.compute(*normal);
-}
+// void estimate_normal(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normal)
+// {
+// 	pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+// 	ne.setInputCloud (cloud);
+// 	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+// 	ne.setSearchMethod(tree);
+// 	ne.setRadiusSearch(100);
+// 	ne.compute(*normal);
+// }
 
 std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float radius, pcl::PointXYZ searchpoint)
 {
@@ -96,6 +94,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 			num_normals++;
 		}
 	}
+	for(int i=0;i<num_normals;i++)	std::cout << normal->points[i] << std::endl;
 }
 
 int main(int argc, char** argv)
@@ -115,13 +114,11 @@ int main(int argc, char** argv)
 	normal->points.resize(num_points);
 	// estimate_normal(cloud, normal);
 
-	// kdtree_search(cloud);
 	Eigen::Vector4f plane_parameters;
 	plane_fitting(cloud, normal, planecloud);
 
 	pcl::visualization::PCLVisualizer viewer("Test Point Cloud Viewer");
 	viewer.addPointCloud(cloud, "cloud");
-	// viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(cloud, normal, 1, 0.3, "normals");
 	viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(planecloud, normal, 1, 0.5, "normals");
 	// boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Normals"));
 	// viewer->addPointCloud<pcl::PointXYZ>(cloud, "cloud");
