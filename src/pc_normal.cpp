@@ -13,7 +13,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-sensor_msgs::PointCloud2 tmp;
+// sensor_msgs::PointCloud2 tmp;
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
@@ -22,6 +22,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 	pcl::PointCloud<pcl::PointXYZ>::Ptr tmp_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::fromROSMsg(*msg, *tmp_cloud);
 	*cloud += *tmp_cloud;
+	if(cloud->points.size()>10*tmp_cloud->points.size())	cloud->points.erase(cloud->points.begin(), cloud->points.begin()+tmp_cloud->points.size());
 }
 
 void randomize_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int n)
@@ -61,11 +62,12 @@ std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float 
 	return pointIdxRadiusSearch; 
 }
 
-void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud)
+void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
 {
 	const float radius = 0.5;
 	float curvature;
 	int num_normals = 0;
+	// std::vector<float> fitting_errors;
 	for(int i=0;i<cloud->points.size();i+=10000){
 		pcl::PointXYZ searchpoint;
 		searchpoint.x = cloud->points[i].x;
@@ -74,7 +76,9 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 		std::vector<int> indices = kdtree_search(cloud, radius, searchpoint);
 
 		Eigen::Vector4f plane_parameters;
+		// setViewPoint (float vpx, float vpy, float vpz);
 		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
+		if(plane_parameters[2]>0.8)	continue;
 		float sum_square_error = 0.0;
 		for(int i=0;i<indices.size();i++){
 			float square_error =	(plane_parameters[0]*cloud->points[indices[i]].x
@@ -93,11 +97,12 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 		std::cout << "indices.size() = " << indices.size() << std::endl;
 		std::cout << "sum_square_error = " << sum_square_error << std::endl;
 		std::cout << "curvature = " << plane_parameters[3] << std::endl;
-		if(sum_square_error<0.01&&plane_parameters[2]<0.8){
+		if(sum_square_error<0.01){
 			planecloud->points[num_normals] = cloud->points[i];
 			normal->points[num_normals].normal_x = plane_parameters[0];
 			normal->points[num_normals].normal_y = plane_parameters[1];
 			normal->points[num_normals].normal_z = plane_parameters[2];
+			fitting_errors.push_back(sum_square_error);
 			num_normals++;
 		}
 	}
@@ -106,16 +111,16 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 
 void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr g_point, pcl::PointCloud<pcl::Normal>::Ptr g_vector)
 {
-	pcl::PointCloud<pcl::PointXYZ> tmp_cloud;
-	tmp_cloud.points.resize(normal->points.size());
+	pcl::PointCloud<pcl::PointXYZ> normal_sphere;
+	normal_sphere.points.resize(normal->points.size());
 	for(int i=0;i<normal->points.size();i++){
-		tmp_cloud.points[i].x = normal->points[i].normal_x;
-		tmp_cloud.points[i].y = normal->points[i].normal_y;
-		tmp_cloud.points[i].z = normal->points[i].normal_z;
+		normal_sphere.points[i].x = normal->points[i].normal_x;
+		normal_sphere.points[i].y = normal->points[i].normal_y;
+		normal_sphere.points[i].z = normal->points[i].normal_z;
 	}
 	Eigen::Vector4f g_parameters;
 	float curvature; 
-	pcl::computePointNormal(tmp_cloud, g_parameters, curvature);
+	pcl::computePointNormal(normal_sphere, g_parameters, curvature);
 	std::cout << "gravity" << std::endl << g_parameters << std::endl;
 	g_vector->points[0].normal_x = g_parameters[0];
 	g_vector->points[0].normal_y = g_parameters[1];
@@ -123,6 +128,11 @@ void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud
 	g_point->points[0].x = 0;
 	g_point->points[0].y = 0;
 	g_point->points[0].z = 0;
+}
+
+void reset(void)
+{
+	//Do I need to reset anything during the cycle?
 }
 
 int main(int argc, char** argv)
@@ -147,8 +157,9 @@ int main(int argc, char** argv)
 	normal->points.resize(cloud->points.size());
 	// estimate_normal(cloud, normal);
 
-	Eigen::Vector4f plane_parameters;
-	plane_fitting(cloud, normal, planecloud);
+	// Eigen::Vector4f plane_parameters;
+	std::vector<float> fitting_errors;
+	plane_fitting(cloud, normal, planecloud, fitting_errors);
 	
 	pcl::PointCloud<pcl::PointXYZ>::Ptr g_point (new pcl::PointCloud<pcl::PointXYZ>);
 	g_point->points.resize(1);
@@ -186,7 +197,7 @@ int main(int argc, char** argv)
 		// }
 		if(!cloud->points.empty()){
 			sensor_msgs::PointCloud2 roscloud_out;
-			roscloud_out.header.frame_id = "/centerlaser_";
+			// roscloud_out.header.frame_id = "/centerlaser_";
 			pcl::toROSMsg(*cloud, roscloud_out);
 			roscloud_out.header.frame_id = "/centerlaser_";
 			cloud_pub.publish(roscloud_out);
