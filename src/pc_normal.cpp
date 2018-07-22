@@ -62,7 +62,7 @@ std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float 
 	return pointIdxRadiusSearch; 
 }
 
-void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
+void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
 {
 	const float radius = 0.5;
 	float curvature;
@@ -99,24 +99,24 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 		std::cout << "curvature = " << plane_parameters[3] << std::endl;
 		if(sum_square_error<0.01){
 			planecloud->points[num_normals] = cloud->points[i];
-			normal->points[num_normals].normal_x = plane_parameters[0];
-			normal->points[num_normals].normal_y = plane_parameters[1];
-			normal->points[num_normals].normal_z = plane_parameters[2];
+			normals->points[num_normals].normal_x = plane_parameters[0];
+			normals->points[num_normals].normal_y = plane_parameters[1];
+			normals->points[num_normals].normal_z = plane_parameters[2];
 			fitting_errors.push_back(sum_square_error);
 			num_normals++;
 		}
 	}
-	for(int i=0;i<num_normals;i++)	std::cout << normal->points[i] << std::endl;
+	for(int i=0;i<num_normals;i++)	std::cout << normals->points[i] << std::endl;
 }
 
-void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr g_point, pcl::PointCloud<pcl::Normal>::Ptr g_vector)
+void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr g_point, pcl::PointCloud<pcl::Normal>::Ptr g_vector)
 {
 	pcl::PointCloud<pcl::PointXYZ> normal_sphere;
-	normal_sphere.points.resize(normal->points.size());
-	for(int i=0;i<normal->points.size();i++){
-		normal_sphere.points[i].x = normal->points[i].normal_x;
-		normal_sphere.points[i].y = normal->points[i].normal_y;
-		normal_sphere.points[i].z = normal->points[i].normal_z;
+	normal_sphere.points.resize(normals->points.size());
+	for(int i=0;i<normals->points.size();i++){
+		normal_sphere.points[i].x = normals->points[i].normal_x;
+		normal_sphere.points[i].y = normals->points[i].normal_y;
+		normal_sphere.points[i].z = normals->points[i].normal_z;
 	}
 	Eigen::Vector4f g_parameters;
 	float curvature; 
@@ -133,6 +133,100 @@ void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud
 void reset(void)
 {
 	//Do I need to reset anything during the cycle?
+}
+
+void clustering(pcl::PointCloud<pcl::Normal>::Ptr normals, std::vector<float> fitting_errors)
+{
+	pcl::PointCloud<pcl::PointXYZ> normal_sphere;
+	normal_sphere.points.resize(normals->points.size());
+	for(int i=0;i<normals->points.size();i++){
+		normal_sphere.points[i].x = normals->points[i].normal_x;
+		normal_sphere.points[i].y = normals->points[i].normal_y;
+		normal_sphere.points[i].z = normals->points[i].normal_z;
+	}
+	std::vector<int> num_members(normal_sphere.points.size(), 1);
+	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+	int k = 1;
+	std::vector<int> pointIdxNKNSearch(k);
+	std::vector<float> pointNKNSquaredDistance(k);
+	pcl::PointXYZ searchpoint;
+	// std::vector<int> nearest_index_list;
+	// std::vector<float> nearest_distance_list;
+	// float shortest_index = 0;
+	// float shortest_distance;
+
+	/*
+	kdtree.setInputCloud(normal_sphere);
+	for(int i=0;i<normals->points.size();i++){
+		searchpoint = normal_sphere.points[i];
+		if(kdtree.nearestKSearch(searchPoint, k, pointIdxNKNSearch, pointNKNSquaredDistance)<0)	break;
+		nearest_index_list.push_back(pointIdxNKNSearch[0]);
+		nearest_distance_list.push_back(pointNKNSquaredDistance[0]);
+		if(i==0)	shortest_distance = pointNKNSquaredDistance[0];
+		else if(pointNKNSquaredDistance[0]<shortest_distance){
+			shortest_index = i;
+			shortest_distance = pointNKNSquaredDistance[0];
+		}
+	}
+	const float fitting_error_threshold = 0.01;
+	while(ros::ok()){
+		std::vector<float> n1(3) = {normal_sphere.points[shortest_index].x, normal_sphere.points[shortest_index].y, normal_sphere.points[shortest_index].z}
+		float w1 = fitting_error_threshold/fitting_error[shortest_index];
+		std::vector<float> n2(3) = {normal_sphere.points[pointIdxNKNSearch[shortest_index]].x, normal_sphere.points[pointIdxNKNSearch[shortest_index]].y, normal_sphere.points[pointIdxNKNSearch[shortest_index]].z}
+		float w2 = fitting_error_threshold/fitting_error[pointIdxNKNSearch[shortest_index]];
+		
+		normal_spere.points[shortest_index].x = (n1[0]*w1 + n2[0]*w2)/(w1 + w2);
+		normal_spere.points[shortest_index].y = (n1[1]*w1 + n2[1]*w2)/(w1 + w2);
+		normal_spere.points[shortest_index].z = (n1[2]*w1 + n2[2]*w2)/(w1 + w2);
+		fitting_error[shortest_index] = w1*w2;
+			
+		normal_sphere->points.erase(normal_sphere->points.begin()+pointIdxNKNSearch[shortest_index]);
+		
+		
+		kdtree.setInputCloud(normal_sphere);
+		searchpoint = normal_sphere.points[i];
+
+		if(nearest_distance>0.1)	break;
+	}
+	*/
+	
+	while(ros::ok()){
+		kdtree.setInputCloud(normal_sphere);
+		// std::vector<int> nearest_index_list;
+		// std::vector<float> nearest_distance_list;
+		float shortest_dist_index = 0;
+		float shortest_distance;
+		for(int i=0;i<normal_sphere.points.size();i++){
+			searchpoint = normal_sphere.points[i];
+			if(kdtree.nearestKSearch(searchPoint, k, pointIdxNKNSearch, pointNKNSquaredDistance)<0){
+				std::cout << "error" << std::endl;
+				break;
+			}
+			// nearest_index_list.push_back(pointIdxNKNSearch[0]);
+			// nearest_distance_list.push_back(pointNKNSquaredDistance[0]);
+			if(i==0)	shortest_distance = pointNKNSquaredDistance[0];
+			else if(pointNKNSquaredDistance[0]<shortest_distance){
+				shortest_dist_index = i;
+				shortest_distance = pointNKNSquaredDistance[0];
+			}
+		}
+		if(shortest_distance>0.01) break;
+		std::vector<float> n1(3) = {normal_sphere.points[shortest__dist_index].x, normal_sphere.points[shortest_dist_index].y, normal_sphere.points[shortest_dist_index].z}
+		float w1 = fitting_error_threshold/fitting_error[shortest_dist__index] * num_members[shortest_dist_index]/(float)normals->points.size();
+		std::vector<float> n2(3) = {normal_sphere.points[pointIdxNKNSearch[shortest_dist_index]].x, normal_sphere.points[pointIdxNKNSearch[shortest_dist_index]].y, normal_sphere.points[pointIdxNKNSearch[shortest_index]].z}
+		float w2 = fitting_error_threshold/fitting_error[pointIdxNKNSearch[shortest_dist_index]] * num_members[pointIdxNKNSearch[shortest_dist_index]]/(float)normals->points.size();
+		
+		normal_spere.points[shortest_dist_index].x = (n1[0]*w1 + n2[0]*w2)/(w1 + w2);
+		normal_spere.points[shortest_dist_index].y = (n1[1]*w1 + n2[1]*w2)/(w1 + w2);
+		normal_spere.points[shortest_dist_index].z = (n1[2]*w1 + n2[2]*w2)/(w1 + w2);
+		fitting_error[shortest_dist_index] = (fitting_error[shortest_dist__index] + fitting_error[pointIdxNKNSearch[shortest_dist_index]])/2.0;
+		num_members[shortest_dist_index] += num_members[pointIdxNKNSearch[shortest_dist_index]];
+		
+		normal_sphere.points.erase(normal_sphere.points.begin()+pointIdxNKNSearch[shortest_dist_index]);
+		fitting_error.erase(fitting_error.begin()+pointIdxNKNSearch[shortest_dist_index]);
+		num_members.erase(num_members.begin()+pointIdxNKNSearch[shortest_dist_index]);
+	}
+
 }
 
 int main(int argc, char** argv)
@@ -153,23 +247,23 @@ int main(int argc, char** argv)
 	planecloud->points.resize(cloud->points.size());
 	// randomize_cloud(cloud, num_points);
 	print_cloud(cloud, cloud->points.size());
-	pcl::PointCloud<pcl::Normal>::Ptr normal (new pcl::PointCloud<pcl::Normal>);
-	normal->points.resize(cloud->points.size());
-	// estimate_normal(cloud, normal);
+	pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+	normals->points.resize(cloud->points.size());
+	// estimate_normal(cloud, normals);
 
 	// Eigen::Vector4f plane_parameters;
 	std::vector<float> fitting_errors;
-	plane_fitting(cloud, normal, planecloud, fitting_errors);
+	plane_fitting(cloud, normals, planecloud, fitting_errors);
 	
 	pcl::PointCloud<pcl::PointXYZ>::Ptr g_point (new pcl::PointCloud<pcl::PointXYZ>);
 	g_point->points.resize(1);
 	pcl::PointCloud<pcl::Normal>::Ptr g_vector (new pcl::PointCloud<pcl::Normal>);
 	g_vector->points.resize(1);
-	// estimate_g_vector(normal, g_point, g_vector);
+	// estimate_g_vector(normals, g_point, g_vector);
 
 	// pcl::visualization::PCLVisualizer viewer("Test Point Cloud Viewer");
 	// viewer.addPointCloud(cloud, "cloud");
-	// viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(planecloud, normal, 1, 0.5, "normals");
+	// viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(planecloud, normals, 1, 0.5, "normals");
 	// viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals"); 
 	// viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals"); 
 	//
@@ -179,7 +273,7 @@ int main(int argc, char** argv)
 
 	// boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Normals"));
 	// viewer->addPointCloud<pcl::PointXYZ>(cloud, "cloud");
-	// viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(cloud, normal, 5, 0.3, "normals");
+	// viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(cloud, normals, 5, 0.3, "normals");
 
 	// std::cout << "TEST" << std::endl;
 	int roop_count = 0;
