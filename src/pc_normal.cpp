@@ -137,14 +137,14 @@ void reset(void)
 
 void clustering(pcl::PointCloud<pcl::Normal>::Ptr normals, std::vector<float> fitting_errors)
 {
-	pcl::PointCloud<pcl::PointXYZ> normal_sphere;
-	normal_sphere.points.resize(normals->points.size());
+	pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere;
+	normal_sphere->points.resize(normals->points.size());
 	for(int i=0;i<normals->points.size();i++){
-		normal_sphere.points[i].x = normals->points[i].normal_x;
-		normal_sphere.points[i].y = normals->points[i].normal_y;
-		normal_sphere.points[i].z = normals->points[i].normal_z;
+		normal_sphere->points[i].x = normals->points[i].normal_x;
+		normal_sphere->points[i].y = normals->points[i].normal_y;
+		normal_sphere->points[i].z = normals->points[i].normal_z;
 	}
-	std::vector<int> num_members(normal_sphere.points.size(), 1);
+	std::vector<int> num_members(normal_sphere->points.size(), 1);
 	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
 	int k = 1;
 	std::vector<int> pointIdxNKNSearch(k);
@@ -190,15 +190,16 @@ void clustering(pcl::PointCloud<pcl::Normal>::Ptr normals, std::vector<float> fi
 	}
 	*/
 	
+	const float fitting_error_threshold = 0.01;
 	while(ros::ok()){
 		kdtree.setInputCloud(normal_sphere);
 		// std::vector<int> nearest_index_list;
 		// std::vector<float> nearest_distance_list;
 		float shortest_dist_index = 0;
 		float shortest_distance;
-		for(int i=0;i<normal_sphere.points.size();i++){
-			searchpoint = normal_sphere.points[i];
-			if(kdtree.nearestKSearch(searchPoint, k, pointIdxNKNSearch, pointNKNSquaredDistance)<0){
+		for(int i=0;i<normal_sphere->points.size();i++){
+			searchpoint = normal_sphere->points[i];
+			if(kdtree.nearestKSearch(searchpoint, k, pointIdxNKNSearch, pointNKNSquaredDistance)<0){
 				std::cout << "error" << std::endl;
 				break;
 			}
@@ -211,19 +212,19 @@ void clustering(pcl::PointCloud<pcl::Normal>::Ptr normals, std::vector<float> fi
 			}
 		}
 		if(shortest_distance>0.01) break;
-		std::vector<float> n1(3) = {normal_sphere.points[shortest__dist_index].x, normal_sphere.points[shortest_dist_index].y, normal_sphere.points[shortest_dist_index].z}
-		float w1 = fitting_error_threshold/fitting_error[shortest_dist__index] * num_members[shortest_dist_index]/(float)normals->points.size();
-		std::vector<float> n2(3) = {normal_sphere.points[pointIdxNKNSearch[shortest_dist_index]].x, normal_sphere.points[pointIdxNKNSearch[shortest_dist_index]].y, normal_sphere.points[pointIdxNKNSearch[shortest_index]].z}
-		float w2 = fitting_error_threshold/fitting_error[pointIdxNKNSearch[shortest_dist_index]] * num_members[pointIdxNKNSearch[shortest_dist_index]]/(float)normals->points.size();
+		std::vector<float> n1 = {normal_sphere->points[shortest_dist_index].x, normal_sphere->points[shortest_dist_index].y, normal_sphere->points[shortest_dist_index].z};
+		float w1 = fitting_error_threshold/fitting_errors[shortest_dist_index] * num_members[shortest_dist_index]/(float)normals->points.size();
+		std::vector<float> n2 = {normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].x, normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].y, normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].z};
+		float w2 = fitting_error_threshold/fitting_errors[pointIdxNKNSearch[shortest_dist_index]] * num_members[pointIdxNKNSearch[shortest_dist_index]]/(float)normals->points.size();
 		
-		normal_spere.points[shortest_dist_index].x = (n1[0]*w1 + n2[0]*w2)/(w1 + w2);
-		normal_spere.points[shortest_dist_index].y = (n1[1]*w1 + n2[1]*w2)/(w1 + w2);
-		normal_spere.points[shortest_dist_index].z = (n1[2]*w1 + n2[2]*w2)/(w1 + w2);
-		fitting_error[shortest_dist_index] = (fitting_error[shortest_dist__index] + fitting_error[pointIdxNKNSearch[shortest_dist_index]])/2.0;
+		normal_sphere->points[shortest_dist_index].x = (n1[0]*w1 + n2[0]*w2)/(w1 + w2);
+		normal_sphere->points[shortest_dist_index].y = (n1[1]*w1 + n2[1]*w2)/(w1 + w2);
+		normal_sphere->points[shortest_dist_index].z = (n1[2]*w1 + n2[2]*w2)/(w1 + w2);
+		fitting_errors[shortest_dist_index] = (fitting_errors[shortest_dist_index] + fitting_errors[pointIdxNKNSearch[shortest_dist_index]])/2.0;
 		num_members[shortest_dist_index] += num_members[pointIdxNKNSearch[shortest_dist_index]];
 		
-		normal_sphere.points.erase(normal_sphere.points.begin()+pointIdxNKNSearch[shortest_dist_index]);
-		fitting_error.erase(fitting_error.begin()+pointIdxNKNSearch[shortest_dist_index]);
+		normal_sphere->points.erase(normal_sphere->points.begin()+pointIdxNKNSearch[shortest_dist_index]);
+		fitting_errors.erase(fitting_errors.begin()+pointIdxNKNSearch[shortest_dist_index]);
 		num_members.erase(num_members.begin()+pointIdxNKNSearch[shortest_dist_index]);
 	}
 
