@@ -13,16 +13,23 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-// sensor_msgs::PointCloud2 tmp;
+std::vector<int> num_subpoints;
+// ros::Time tm;
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
 	// std::cout << "cloud_callback" << std::endl;
-	
-	pcl::PointCloud<pcl::PointXYZ>::Ptr tmp_cloud (new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::fromROSMsg(*msg, *tmp_cloud);
-	*cloud += *tmp_cloud;
-	if(cloud->points.size()>10*tmp_cloud->points.size())	cloud->points.erase(cloud->points.begin(), cloud->points.begin()+tmp_cloud->points.size());
+	// tm = msg->header.stamp;
+	pcl::fromROSMsg(*msg, *cloud);
+
+	// pcl::PointCloud<pcl::PointXYZ>::Ptr tmp_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+	// pcl::fromROSMsg(*msg, *tmp_cloud);
+	// for(int i=0;i<tmp_cloud->points.size();i++)	cloud->points.push_back(tmp_cloud->points[i]);
+	// num_subpoints.push_back(tmp_cloud->points.size());
+	// if(num_subpoints.size()==100){
+	// 	cloud->points.erase(cloud->points.begin(), cloud->points.begin()+num_subpoints[0]);
+	// 	num_subpoints.erase(num_subpoints.begin());
+	// }
 }
 
 void randomize_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int n)
@@ -236,8 +243,8 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh;
 
 	/*pub sub*/
-	ros::Subscriber cloud_sub = nh.subscribe("/cloud", 20, cloud_callback);
-	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
+	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 10, cloud_callback);
+	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",10);
 
 	// const int num_points = 10000;
 	// pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
@@ -254,7 +261,7 @@ int main(int argc, char** argv)
 
 	// Eigen::Vector4f plane_parameters;
 	std::vector<float> fitting_errors;
-	plane_fitting(cloud, normals, planecloud, fitting_errors);
+	// plane_fitting(cloud, normals, planecloud, fitting_errors);
 	
 	pcl::PointCloud<pcl::PointXYZ>::Ptr g_point (new pcl::PointCloud<pcl::PointXYZ>);
 	g_point->points.resize(1);
@@ -292,9 +299,9 @@ int main(int argc, char** argv)
 		// }
 		if(!cloud->points.empty()){
 			sensor_msgs::PointCloud2 roscloud_out;
-			// roscloud_out.header.frame_id = "/centerlaser_";
 			pcl::toROSMsg(*cloud, roscloud_out);
-			roscloud_out.header.frame_id = "/centerlaser_";
+			roscloud_out.header.frame_id = "/centerlaser";
+			// roscloud_out.header.stamp = tm;
 			cloud_pub.publish(roscloud_out);
 		}
 		// viewer->spinOnce(100);
