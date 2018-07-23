@@ -13,7 +13,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-std::vector<int> num_subpoints;
+// std::vector<int> num_subpoints;
 // ros::Time tm;
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
@@ -69,11 +69,12 @@ std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float 
 	return pointIdxRadiusSearch; 
 }
 
-void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
+// void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
+void plane_fitting(pcl::PointCloud<pcl::XYZNormal>::Ptr normals, std::vector<float>& fitting_errors)
 {
 	const float radius = 0.5;
 	float curvature;
-	int num_normals = 0;
+	// int num_normals = 0;
 	// std::vector<float> fitting_errors;
 	for(int i=0;i<cloud->points.size();i+=10000){
 		pcl::PointXYZ searchpoint;
@@ -105,12 +106,17 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 		std::cout << "sum_square_error = " << sum_square_error << std::endl;
 		std::cout << "curvature = " << plane_parameters[3] << std::endl;
 		if(sum_square_error<0.01){
-			planecloud->points[num_normals] = cloud->points[i];
-			normals->points[num_normals].normal_x = plane_parameters[0];
-			normals->points[num_normals].normal_y = plane_parameters[1];
-			normals->points[num_normals].normal_z = plane_parameters[2];
+			// planecloud->points[num_normals] = cloud->points[i];
+			pcl::PointXYZNormal tmp_normal;
+			tmp_normal.x = cloud->points[i].x;
+			tmp_normal.y = cloud->points[i].y;
+			tmp_normal.z = cloud->points[i].z;
+			tmp_normal.normal_x = plane_parameters[0];
+			tmp_normal.normal_y = plane_parameters[1];
+			tmp_normal.normal_z = plane_parameters[2];
+			normals.push_back(tmp_normal);
 			fitting_errors.push_back(sum_square_error);
-			num_normals++;
+			// num_normals++;
 		}
 	}
 	for(int i=0;i<num_normals;i++)	std::cout << normals->points[i] << std::endl;
@@ -223,18 +229,17 @@ void clustering(pcl::PointCloud<pcl::Normal>::Ptr normals, std::vector<float> fi
 		float w1 = fitting_error_threshold/fitting_errors[shortest_dist_index] * num_members[shortest_dist_index]/(float)normals->points.size();
 		std::vector<float> n2 = {normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].x, normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].y, normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].z};
 		float w2 = fitting_error_threshold/fitting_errors[pointIdxNKNSearch[shortest_dist_index]] * num_members[pointIdxNKNSearch[shortest_dist_index]]/(float)normals->points.size();
-		
+
 		normal_sphere->points[shortest_dist_index].x = (n1[0]*w1 + n2[0]*w2)/(w1 + w2);
 		normal_sphere->points[shortest_dist_index].y = (n1[1]*w1 + n2[1]*w2)/(w1 + w2);
 		normal_sphere->points[shortest_dist_index].z = (n1[2]*w1 + n2[2]*w2)/(w1 + w2);
 		fitting_errors[shortest_dist_index] = (fitting_errors[shortest_dist_index] + fitting_errors[pointIdxNKNSearch[shortest_dist_index]])/2.0;
 		num_members[shortest_dist_index] += num_members[pointIdxNKNSearch[shortest_dist_index]];
-		
+
 		normal_sphere->points.erase(normal_sphere->points.begin()+pointIdxNKNSearch[shortest_dist_index]);
 		fitting_errors.erase(fitting_errors.begin()+pointIdxNKNSearch[shortest_dist_index]);
 		num_members.erase(num_members.begin()+pointIdxNKNSearch[shortest_dist_index]);
 	}
-
 }
 
 int main(int argc, char** argv)
@@ -245,23 +250,25 @@ int main(int argc, char** argv)
 	/*pub sub*/
 	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 10, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",10);
+	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",10);
 
 	// const int num_points = 10000;
 	// pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	// pcl::io::loadPCDFile ("/home/amsl/ros_catkin_ws/src/beginner_tutorials/map_0.pcd", *cloud);
 	// int num_points = cloud->points.size();
 	// cloud->points.resize(num_points);
-	pcl::PointCloud<pcl::PointXYZNormal>::Ptr plane_normals (new pcl::PointCloud<pcl::PointXYZ>);
-	planecloud->points.resize(cloud->points.size());
+	pcl::PointCloud<pcl::PointXYZNormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZ>);
+	// normals->points.resize(cloud->points.size());
 	// randomize_cloud(cloud, num_points);
 	print_cloud(cloud, cloud->points.size());
-	pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-	normals->points.resize(cloud->points.size());
+	// pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+	// normals->points.resize(cloud->points.size());
 	// estimate_normal(cloud, normals);
 
 	// Eigen::Vector4f plane_parameters;
 	std::vector<float> fitting_errors;
 	// plane_fitting(cloud, normals, planecloud, fitting_errors);
+	plane_fitting(normals, fitting_errors);
 	
 	pcl::PointCloud<pcl::PointXYZ>::Ptr g_point (new pcl::PointCloud<pcl::PointXYZ>);
 	g_point->points.resize(1);
@@ -303,6 +310,12 @@ int main(int argc, char** argv)
 			roscloud_out.header.frame_id = "/centerlaser";
 			// roscloud_out.header.stamp = tm;
 			cloud_pub.publish(roscloud_out);
+			
+			sensor_msgs::PointCloud2 rosnormals_out;
+			pcl::toROSMsg(*normals, rosnormals_out);
+			rosnormals_out.header.frame_id = "/centerlaser";
+			// rosnormals_out.header.stamp = tm;
+			normals_pub.publish(rosnormals_out);
 		}
 		// viewer->spinOnce(100);
 		// boost::this_thread::sleep(boost::posix_time::microseconds(100000));
