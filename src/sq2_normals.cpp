@@ -251,7 +251,7 @@ int main(int argc, char** argv)
 	// pcl::io::loadPCDFile ("/home/amsl/ros_catkin_ws/src/beginner_tutorials/map_0.pcd", *cloud);
 	// int num_points = cloud->points.size();
 	// cloud->points.resize(num_points);
-	pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud (new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::PointXYZNormal>::Ptr plane_normals (new pcl::PointCloud<pcl::PointXYZ>);
 	planecloud->points.resize(cloud->points.size());
 	// randomize_cloud(cloud, num_points);
 	print_cloud(cloud, cloud->points.size());
