@@ -15,7 +15,12 @@
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 // std::vector<int> num_subpoints;
 // ros::Time tm;
-bool a = true;
+
+struct	FEATURES{
+	int num_refpoints;
+	float fitting_error;
+	float weight;
+};
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
@@ -92,7 +97,7 @@ std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float 
 }
 
 // void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
-void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<float>& fitting_errors)
+void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<float>& fitting_errors, std::vector<int>& num_refpoints)
 {
 	std::cout << "-----PLANE FITTING-----" <<  std::endl;
 	const float radius = 0.5;
@@ -149,6 +154,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 			tmp_normal.normal_z = plane_parameters[2];
 			normals->points.push_back(tmp_normal);
 			fitting_errors.push_back(sum_square_error);
+			num_refpoints.push_back(indices.size());
 			// num_normals++;
 		}
 	}
@@ -194,18 +200,22 @@ void reset(void)
 	//Do I need to reset anything during the cycle?
 }
 
-void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<float> fitting_errors)
+void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<float> fitting_errors, std::vector<int> num_refpoints)
 {
 	std::cout << "-----CLUSTERING-----" << std::endl;
 	std::cout << "normals->points.size()" << normals->points.size() << std::endl;
 	pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere (new pcl::PointCloud<pcl::PointXYZ>);
 	normal_sphere->points.resize(normals->points.size());
+	std::vector<float> weight;
+	
 	for(int i=0;i<normals->points.size();i++){
 		normal_sphere->points[i].x = normals->points[i].normal_x;
 		normal_sphere->points[i].y = normals->points[i].normal_y;
 		normal_sphere->points[i].z = normals->points[i].normal_z;
+		weight.push_back(num_refpoints[i]/fitting_errors[i]);
 	}
-	std::vector<int> num_members(normal_sphere->points.size(), 1);
+	
+	// std::vector<int> num_members(normal_sphere->points.size(), 1);
 	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
 	int k = 1;
 	std::vector<int> pointIdxNKNSearch(k);
@@ -253,7 +263,7 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 	
 	const float fitting_error_threshold = 0.01;
 	while(ros::ok()){
-		if(normal_sphere->points.size()<5)	break;
+		if(normal_sphere->points.size==1)	break;
 		kdtree.setInputCloud(normal_sphere);
 		// std::vector<int> nearest_index_list;
 		// std::vector<float> nearest_distance_list;
@@ -273,7 +283,7 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 				shortest_distance = pointNKNSquaredDistance[0];
 			}
 		}
-		if(shortest_distance>0.01) break;
+		if(shortest_distance>0.001) break;
 		std::vector<float> n1 = {normal_sphere->points[shortest_dist_index].x, normal_sphere->points[shortest_dist_index].y, normal_sphere->points[shortest_dist_index].z};
 		float w1 = fitting_error_threshold/fitting_errors[shortest_dist_index] * num_members[shortest_dist_index]/(float)normals->points.size();
 		std::vector<float> n2 = {normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].x, normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].y, normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].z};
@@ -297,7 +307,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "pc_normal");
 	ros::NodeHandle nh;
 
-	/*pub sub*/
+	/*sub & pub*/
 	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
@@ -351,13 +361,15 @@ int main(int argc, char** argv)
 		
 
 		if(!cloud->points.empty()){
+			/*-----clouds------*/
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZINormal>);
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr main_normals (new pcl::PointCloud<pcl::PointXYZINormal>);
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointXYZINormal>);
 			g_vector->points.resize(1);
 
 			std::vector<float> fitting_errors;
-			plane_fitting(normals, fitting_errors);
+			std::vector<int> num_refpoints;
+			plane_fitting(normals, fitting_errors, num_refpoints);
 			clustering(normals, fitting_errors);
 			// estimate_g_vector(normals, g_point, g_vector);
 			
