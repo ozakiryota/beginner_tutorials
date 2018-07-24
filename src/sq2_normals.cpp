@@ -155,26 +155,38 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 	// for(int i=0;i<normals->points.size();i++)	std::cout << normals->points[i] << std::endl;
 }
 
-void estimate_g_vector(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr g_point, pcl::PointCloud<pcl::Normal>::Ptr g_vector)
+bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZINormal>::Ptr main_normals, pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector)
 {
-	// pcl::PointCloud<pcl::PointXYZ> normal_sphere;
-	// normal_sphere.points.resize(normals->points.size());
-	// for(int i=0;i<normals->points.size();i++){
-	// 	normal_sphere.points[i].x = normals->points[i].normal_x;
-	// 	normal_sphere.points[i].y = normals->points[i].normal_y;
-	// 	normal_sphere.points[i].z = normals->points[i].normal_z;
-	// }
+	std::cout << "-----ESTIMATE G_VECTOR-----" << std::endl;
+	if(main_normals->points.size()<2){
+		std::cout << "Failed because main_normals has less than 2 normals" << std::endl;
+		return false;
+	}
+	pcl::PointCloud<pcl::PointXYZ> normal_sphere;
+	normal_sphere.points.resize(main_normals->points.size());
+	for(int i=0;i<normals->points.size();i++){
+		normal_sphere.points[i].x = normals->points[i].normal_x;
+		normal_sphere.points[i].y = normals->points[i].normal_y;
+		normal_sphere.points[i].z = normals->points[i].normal_z;
+	}
+	g_vector->points[0].x = 0;
+	g_vector->points[0].y = 0;
+	g_vector->points[0].z = 1.0;
+	if(main_normals->points.size()==2){
+		g_vector->points[0].normal_x = normal_sphere.points[0].normal_y*normal_sphere.points[1].normal_z - normal_sphere.points[0].normal_z*normal_sphere.points[1].normal_y;
+		g_vector->points[0].normal_y = normal_sphere.points[0].normal_z*normal_sphere.points[1].normal_x - normal_sphere.points[0].normal_x*normal_sphere.points[1].normal_z;
+		g_vector->points[0].normal_z = normal_sphere.points[0].normal_x*normal_sphere.points[1].normal_y - normal_sphere.points[0].normal_y*normal_sphere.points[1].normal_x;
+		return true;
+	}
 	Eigen::Vector4f g_parameters;
 	float curvature; 
-	// pcl::computePointNormal(normal_sphere, g_parameters, curvature);
-	pcl::computePointNormal(*normals, g_parameters, curvature);
+	pcl::computePointNormal(normal_sphere, g_parameters, curvature);
+	// pcl::computePointNormal(*main_normals, g_parameters, curvature);
 	// std::cout << "gravity" << std::endl << g_parameters << std::endl;
 	g_vector->points[0].normal_x = -g_parameters[0];
 	g_vector->points[0].normal_y = -g_parameters[1];
 	g_vector->points[0].normal_z = -g_parameters[2];
-	g_point->points[0].x = 0;
-	g_point->points[0].y = 0;
-	g_point->points[0].z = 1.0;
+	return true;
 }
 
 void reset(void)
@@ -309,10 +321,10 @@ int main(int argc, char** argv)
 	// plane_fitting(normals, fitting_errors);
 	// randomize_normals(normals, 100);
 	
-	pcl::PointCloud<pcl::PointXYZ>::Ptr g_point (new pcl::PointCloud<pcl::PointXYZ>);
-	g_point->points.resize(1);
-	pcl::PointCloud<pcl::Normal>::Ptr g_vector (new pcl::PointCloud<pcl::Normal>);
-	g_vector->points.resize(1);
+	// pcl::PointCloud<pcl::PointXYZ>::Ptr g_point (new pcl::PointCloud<pcl::PointXYZ>);
+	// g_point->points.resize(1);
+	// pcl::PointCloud<pcl::Normal>::Ptr g_vector (new pcl::PointCloud<pcl::Normal>);
+	// g_vector->points.resize(1);
 	// estimate_g_vector(normals, g_point, g_vector);
 
 	pcl::visualization::PCLVisualizer viewer("Test Point Cloud Viewer");
@@ -340,10 +352,14 @@ int main(int argc, char** argv)
 
 		if(!cloud->points.empty()){
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZINormal>);
+			pcl::PointCloud<pcl::PointXYZINormal>::Ptr main_normals (new pcl::PointCloud<pcl::PointXYZINormal>);
+			pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointXYZINormal>);
+			g_vector->points.resize(1);
+
 			std::vector<float> fitting_errors;
 			plane_fitting(normals, fitting_errors);
 			clustering(normals, fitting_errors);
-			estimate_g_vector(normals, g_point, g_vector);
+			// estimate_g_vector(normals, g_point, g_vector);
 			
 			/*-----publish-----*/
 			sensor_msgs::PointCloud2 roscloud_out;
@@ -367,7 +383,7 @@ int main(int argc, char** argv)
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals"); 
 			viewer.removePointCloud("g");
-			viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(g_point, g_vector, 1, 0.5, "g");
+			viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(g_vector, g_vector, 1, 0.5, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g"); 
 		}
