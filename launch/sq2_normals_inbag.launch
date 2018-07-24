@@ -15,6 +15,6 @@
 	<!-- </node> -->
 	<node pkg="rviz" type="rviz" name="rviz"/>
 
-	<include file="$(find sadayne_pointcloud)/launch/lcl.launch"/>
+	<include file="$(find beginner_tutorials)/launch/lcl.launch"/>
 
 </launch>

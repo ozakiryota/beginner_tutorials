@@ -8,19 +8,22 @@
 #include <pcl/point_types.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/features/normal_3d.h>
-#include <pcl/io/pcd_io.h>
+// #include <pcl/io/pcd_io.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl_conversions/pcl_conversions.h>
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 // std::vector<int> num_subpoints;
 // ros::Time tm;
+bool a = true;
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
 	// std::cout << "cloud_callback" << std::endl;
 	// tm = msg->header.stamp;
 	pcl::fromROSMsg(*msg, *cloud);
+	// std::cout << "msg->data.size() = " << msg->data.size() << std::endl;
+
 
 	// pcl::PointCloud<pcl::PointXYZ>::Ptr tmp_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	// pcl::fromROSMsg(*msg, *tmp_cloud);
@@ -46,6 +49,25 @@ void randomize_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int n)
 	std::cout << "Randomized cloud" << std::endl;
 }
 
+void randomize_normals(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, int n)
+{
+	std::random_device rnd;
+	std::mt19937 mt(rnd());
+	std::uniform_real_distribution<float> rnd_10(-10, 10);
+	
+	normals->points.resize(n);
+	for(int i=0;i<n;i++){
+		normals->points[i].x = rnd_10(mt);
+		normals->points[i].z = rnd_10(mt);
+		normals->points[i].y = rnd_10(mt);
+		normals->points[i].normal_x = rnd_10(mt);
+		normals->points[i].normal_y = rnd_10(mt);
+		normals->points[i].normal_z = rnd_10(mt);
+	}
+	std::cout << "Randomized normals" << std::endl;
+}
+
+
 void print_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int n)
 {
 	for(int i=0;i<n;i++)	std::cout << i+1 << ": " << cloud->points[i].x << "," << cloud->points[i].y << "," << cloud->points[i].z << std::endl;
@@ -70,17 +92,20 @@ std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float 
 }
 
 // void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
-void plane_fitting(pcl::PointCloud<pcl::XYZNormal>::Ptr normals, std::vector<float>& fitting_errors)
+void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<float>& fitting_errors)
 {
+	std::cout << "---PLANE FITTING---" <<  std::endl;
 	const float radius = 0.5;
 	float curvature;
 	// int num_normals = 0;
 	// std::vector<float> fitting_errors;
-	for(int i=0;i<cloud->points.size();i+=10000){
+	for(int i=0;i<cloud->points.size();i+=100){
+		// std::cout << "loop" <<  std::endl;
 		pcl::PointXYZ searchpoint;
 		searchpoint.x = cloud->points[i].x;
 		searchpoint.y = cloud->points[i].y;
 		searchpoint.z = cloud->points[i].z;
+		// std::cout << "start finding kdtree" <<  std::endl;
 		std::vector<int> indices = kdtree_search(cloud, radius, searchpoint);
 
 		Eigen::Vector4f plane_parameters;
@@ -88,6 +113,7 @@ void plane_fitting(pcl::PointCloud<pcl::XYZNormal>::Ptr normals, std::vector<flo
 		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
 		if(plane_parameters[2]>0.8)	continue;
 		float sum_square_error = 0.0;
+		// std::cout << "start caluculating square_error" <<  std::endl;
 		for(int i=0;i<indices.size();i++){
 			float square_error =	(plane_parameters[0]*cloud->points[indices[i]].x
 									+plane_parameters[1]*cloud->points[indices[i]].y
@@ -104,22 +130,22 @@ void plane_fitting(pcl::PointCloud<pcl::XYZNormal>::Ptr normals, std::vector<flo
 		}
 		std::cout << "indices.size() = " << indices.size() << std::endl;
 		std::cout << "sum_square_error = " << sum_square_error << std::endl;
-		std::cout << "curvature = " << plane_parameters[3] << std::endl;
-		if(sum_square_error<0.01){
+		// std::cout << "curvature = " << plane_parameters[3] << std::endl;
+		if(sum_square_error<0.005){
 			// planecloud->points[num_normals] = cloud->points[i];
-			pcl::PointXYZNormal tmp_normal;
+			pcl::PointXYZINormal tmp_normal;
 			tmp_normal.x = cloud->points[i].x;
 			tmp_normal.y = cloud->points[i].y;
 			tmp_normal.z = cloud->points[i].z;
 			tmp_normal.normal_x = plane_parameters[0];
 			tmp_normal.normal_y = plane_parameters[1];
 			tmp_normal.normal_z = plane_parameters[2];
-			normals.push_back(tmp_normal);
+			normals->points.push_back(tmp_normal);
 			fitting_errors.push_back(sum_square_error);
 			// num_normals++;
 		}
 	}
-	for(int i=0;i<num_normals;i++)	std::cout << normals->points[i] << std::endl;
+	// for(int i=0;i<normals->points.size();i++)	std::cout << normals->points[i] << std::endl;
 }
 
 void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr g_point, pcl::PointCloud<pcl::Normal>::Ptr g_vector)
@@ -248,27 +274,28 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh;
 
 	/*pub sub*/
-	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 10, cloud_callback);
-	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",10);
-	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",10);
+	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
+	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
+	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
 
 	// const int num_points = 10000;
 	// pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	// pcl::io::loadPCDFile ("/home/amsl/ros_catkin_ws/src/beginner_tutorials/map_0.pcd", *cloud);
 	// int num_points = cloud->points.size();
 	// cloud->points.resize(num_points);
-	pcl::PointCloud<pcl::PointXYZNormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZ>);
+	// pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZINormal>);
 	// normals->points.resize(cloud->points.size());
 	// randomize_cloud(cloud, num_points);
-	print_cloud(cloud, cloud->points.size());
+	// print_cloud(cloud, cloud->points.size());
 	// pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
 	// normals->points.resize(cloud->points.size());
 	// estimate_normal(cloud, normals);
 
 	// Eigen::Vector4f plane_parameters;
-	std::vector<float> fitting_errors;
+	// std::vector<float> fitting_errors;
 	// plane_fitting(cloud, normals, planecloud, fitting_errors);
-	plane_fitting(normals, fitting_errors);
+	// plane_fitting(normals, fitting_errors);
+	// randomize_normals(normals, 100);
 	
 	pcl::PointCloud<pcl::PointXYZ>::Ptr g_point (new pcl::PointCloud<pcl::PointXYZ>);
 	g_point->points.resize(1);
@@ -276,7 +303,7 @@ int main(int argc, char** argv)
 	g_vector->points.resize(1);
 	// estimate_g_vector(normals, g_point, g_vector);
 
-	// pcl::visualization::PCLVisualizer viewer("Test Point Cloud Viewer");
+	pcl::visualization::PCLVisualizer viewer("Test Point Cloud Viewer");
 	// viewer.addPointCloud(cloud, "cloud");
 	// viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(planecloud, normals, 1, 0.5, "normals");
 	// viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals"); 
@@ -290,21 +317,20 @@ int main(int argc, char** argv)
 	// viewer->addPointCloud<pcl::PointXYZ>(cloud, "cloud");
 	// viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(cloud, normals, 5, 0.3, "normals");
 
+	// viewer.addPointCloud(cloud, "cloud");
 	// std::cout << "TEST" << std::endl;
-	int roop_count = 0;
-	int stock = 1000000;
-	ros::Rate loop_rate(10);
+	ros::Rate loop_rate(1);
 	while(ros::ok()){
-		roop_count %= stock;
-		roop_count += 1;
-		// std::cout << roop_count << std::endl;
-		// viewer.spinOnce();
-		// if(roop_count==stock){
-		// 	viewer.removePointCloud("cloud");
-		// 	viewer.addPointCloud(cloud, "cloud");
-		// 	cloud->points.erase(cloud->points.begin(), cloud->points.begin()+cloud->points.size());
-		// }
+		viewer.spinOnce();
+		// viewer.removePointCloud("cloud");
+		// viewer.addPointCloud(cloud, "cloud");
+		
+
 		if(!cloud->points.empty()){
+			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZINormal>);
+			std::vector<float> fitting_errors;
+			plane_fitting(normals, fitting_errors);
+			
 			sensor_msgs::PointCloud2 roscloud_out;
 			pcl::toROSMsg(*cloud, roscloud_out);
 			roscloud_out.header.frame_id = "/centerlaser";
@@ -316,6 +342,13 @@ int main(int argc, char** argv)
 			rosnormals_out.header.frame_id = "/centerlaser";
 			// rosnormals_out.header.stamp = tm;
 			normals_pub.publish(rosnormals_out);
+			
+			
+			viewer.removePointCloud("cloud");
+			viewer.addPointCloud(cloud, "cloud");
+			viewer.removePointCloud("normals");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals, 1, 0.3, "normals");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals"); 
 		}
 		// viewer->spinOnce(100);
 		// boost::this_thread::sleep(boost::posix_time::microseconds(100000));
