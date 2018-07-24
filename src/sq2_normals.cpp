@@ -99,7 +99,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 	float curvature;
 	// int num_normals = 0;
 	// std::vector<float> fitting_errors;
-	for(int i=0;i<cloud->points.size();i+=100){
+	for(int i=0;i<cloud->points.size();i+=1000){
 		// std::cout << "loop" <<  std::endl;
 		pcl::PointXYZ searchpoint;
 		searchpoint.x = cloud->points[i].x;
@@ -137,6 +137,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 			tmp_normal.x = cloud->points[i].x;
 			tmp_normal.y = cloud->points[i].y;
 			tmp_normal.z = cloud->points[i].z;
+			flipNormalTowardsViewpoint (tmp_normal, 0.0, 0.0, 0.5, plane_parameters);
 			tmp_normal.normal_x = plane_parameters[0];
 			tmp_normal.normal_y = plane_parameters[1];
 			tmp_normal.normal_z = plane_parameters[2];
@@ -148,25 +149,26 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 	// for(int i=0;i<normals->points.size();i++)	std::cout << normals->points[i] << std::endl;
 }
 
-void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr g_point, pcl::PointCloud<pcl::Normal>::Ptr g_vector)
+void estimate_g_vector(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr g_point, pcl::PointCloud<pcl::Normal>::Ptr g_vector)
 {
-	pcl::PointCloud<pcl::PointXYZ> normal_sphere;
-	normal_sphere.points.resize(normals->points.size());
-	for(int i=0;i<normals->points.size();i++){
-		normal_sphere.points[i].x = normals->points[i].normal_x;
-		normal_sphere.points[i].y = normals->points[i].normal_y;
-		normal_sphere.points[i].z = normals->points[i].normal_z;
-	}
+	// pcl::PointCloud<pcl::PointXYZ> normal_sphere;
+	// normal_sphere.points.resize(normals->points.size());
+	// for(int i=0;i<normals->points.size();i++){
+	// 	normal_sphere.points[i].x = normals->points[i].normal_x;
+	// 	normal_sphere.points[i].y = normals->points[i].normal_y;
+	// 	normal_sphere.points[i].z = normals->points[i].normal_z;
+	// }
 	Eigen::Vector4f g_parameters;
 	float curvature; 
-	pcl::computePointNormal(normal_sphere, g_parameters, curvature);
+	// pcl::computePointNormal(normal_sphere, g_parameters, curvature);
+	pcl::computePointNormal(*normals, g_parameters, curvature);
 	std::cout << "gravity" << std::endl << g_parameters << std::endl;
-	g_vector->points[0].normal_x = g_parameters[0];
-	g_vector->points[0].normal_y = g_parameters[1];
-	g_vector->points[0].normal_z = g_parameters[2];
+	g_vector->points[0].normal_x = -g_parameters[0];
+	g_vector->points[0].normal_y = -g_parameters[1];
+	g_vector->points[0].normal_z = -g_parameters[2];
 	g_point->points[0].x = 0;
 	g_point->points[0].y = 0;
-	g_point->points[0].z = 0;
+	g_point->points[0].z = 1.0;
 }
 
 void reset(void)
@@ -319,7 +321,7 @@ int main(int argc, char** argv)
 
 	// viewer.addPointCloud(cloud, "cloud");
 	// std::cout << "TEST" << std::endl;
-	ros::Rate loop_rate(1);
+	ros::Rate loop_rate(10);
 	while(ros::ok()){
 		viewer.spinOnce();
 		// viewer.removePointCloud("cloud");
@@ -343,12 +345,18 @@ int main(int argc, char** argv)
 			// rosnormals_out.header.stamp = tm;
 			normals_pub.publish(rosnormals_out);
 			
-			
+			/*	pcl viewer	*/
 			viewer.removePointCloud("cloud");
 			viewer.addPointCloud(cloud, "cloud");
 			viewer.removePointCloud("normals");
-			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals, 1, 0.3, "normals");
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals"); 
+			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals, 1, 0.2, "normals");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals"); 
+			estimate_g_vector(normals, g_point, g_vector);
+			viewer.removePointCloud("g");
+			viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(g_point, g_vector, 1, 0.5, "g");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "g");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g"); 
 		}
 		// viewer->spinOnce(100);
 		// boost::this_thread::sleep(boost::posix_time::microseconds(100000));
