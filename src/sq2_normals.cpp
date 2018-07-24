@@ -99,7 +99,13 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 	float curvature;
 	// int num_normals = 0;
 	// std::vector<float> fitting_errors;
-	for(int i=0;i<cloud->points.size();i+=1000){
+	std::random_device rnd;
+	std::mt19937 mt(rnd());
+	std::uniform_int_distribution<> rand1000(1, 1000);
+	// for(int i=0;i<cloud->points.size();i+=1000){
+	for(int i=-1;;){
+		i += rand1000(mt);
+		if(i>=cloud->points.size())	break;
 		// std::cout << "loop" <<  std::endl;
 		pcl::PointXYZ searchpoint;
 		searchpoint.x = cloud->points[i].x;
@@ -111,25 +117,25 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 		Eigen::Vector4f plane_parameters;
 		// setViewPoint (float vpx, float vpy, float vpz);
 		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
-		if(plane_parameters[2]>0.8)	continue;
+		if(plane_parameters[2]>0.8||plane_parameters[2]<-0.8)	continue;
 		float sum_square_error = 0.0;
 		// std::cout << "start caluculating square_error" <<  std::endl;
-		for(int i=0;i<indices.size();i++){
-			float square_error =	(plane_parameters[0]*cloud->points[indices[i]].x
-									+plane_parameters[1]*cloud->points[indices[i]].y
-									+plane_parameters[2]*cloud->points[indices[i]].z
+		for(int j=0;j<indices.size();j++){
+			float square_error =	(plane_parameters[0]*cloud->points[indices[j]].x
+									+plane_parameters[1]*cloud->points[indices[j]].y
+									+plane_parameters[2]*cloud->points[indices[j]].z
 									+plane_parameters[3])
-									*(plane_parameters[0]*cloud->points[indices[i]].x
-									+plane_parameters[1]*cloud->points[indices[i]].y
-									+plane_parameters[2]*cloud->points[indices[i]].z
+									*(plane_parameters[0]*cloud->points[indices[j]].x
+									+plane_parameters[1]*cloud->points[indices[j]].y
+									+plane_parameters[2]*cloud->points[indices[j]].z
 									+plane_parameters[3])
 									/(plane_parameters[0]*plane_parameters[0]
 									+plane_parameters[1]*plane_parameters[1]
 									+plane_parameters[2]*plane_parameters[2]);
 			sum_square_error += square_error/(float)indices.size();
 		}
-		// std::cout << "indices.size() = " << indices.size() << std::endl;
-		// std::cout << "sum_square_error = " << sum_square_error << std::endl;
+		std::cout << "indices.size() = " << indices.size() << std::endl;
+		std::cout << "sum_square_error = " << sum_square_error << std::endl;
 		// std::cout << "curvature = " << plane_parameters[3] << std::endl;
 		if(sum_square_error<0.01){
 			// planecloud->points[num_normals] = cloud->points[i];
@@ -337,6 +343,7 @@ int main(int argc, char** argv)
 			std::vector<float> fitting_errors;
 			plane_fitting(normals, fitting_errors);
 			clustering(normals, fitting_errors);
+			estimate_g_vector(normals, g_point, g_vector);
 			
 			/*-----publish-----*/
 			sensor_msgs::PointCloud2 roscloud_out;
@@ -359,7 +366,6 @@ int main(int argc, char** argv)
 			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals, 1, 0.2, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals"); 
-			estimate_g_vector(normals, g_point, g_vector);
 			viewer.removePointCloud("g");
 			viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(g_point, g_vector, 1, 0.5, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "g");

@@ -47,19 +47,7 @@ std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float 
 	return pointIdxRadiusSearch; 
 }
 
-void estimate_normal(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud)
-{
-	std::cout << "start estimate_normal" << std::endl;
-	for(int i=0;i<cloud->points.size();i+=10000)	planecloud->points.push_back(cloud->points[i]);
-	pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-	ne.setInputCloud (planecloud);
-	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
-	ne.setSearchMethod (tree);
-	ne.setRadiusSearch (0.5);
-	ne.compute (*normal);
-}
-
-void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud)
+void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
 {
 	const float radius = 0.5;
 	float curvature;
@@ -72,46 +60,51 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 		std::vector<int> indices = kdtree_search(cloud, radius, searchpoint);
 
 		Eigen::Vector4f plane_parameters;
-		std::cout << "start computePointNormal" << std::endl;
 		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
 		float sum_square_error = 0.0;
-		// std::cout << "start caluculating square_error" << std::endl;
-		// for(int i=0;i<indices.size();i++){
-		// 	float square_error =	(plane_parameters[0]*cloud->points[indices[i]].x
-		// 							+plane_parameters[1]*cloud->points[indices[i]].y
-		// 							+plane_parameters[2]*cloud->points[indices[i]].z
-		// 							+plane_parameters[3])
-		// 							*(plane_parameters[0]*cloud->points[indices[i]].x
-		// 							+plane_parameters[1]*cloud->points[indices[i]].y
-		// 							+plane_parameters[2]*cloud->points[indices[i]].z
-		// 							+plane_parameters[3])
-		// 							/(plane_parameters[0]*plane_parameters[0]
-		// 							+plane_parameters[1]*plane_parameters[1]
-		// 							+plane_parameters[2]*plane_parameters[2]);
-		// 	sum_square_error += square_error/(float)indices.size();
-		// }
-		// std::cout << "indices.size() = " << indices.size() << std::endl;
-		// std::cout << "sum_square_error = " << sum_square_error << std::endl;
-		// std::cout << "curvature = " << plane_parameters[3] << std::endl;
-		// if(sum_square_error<0.01&&plane_parameters[2]<0.8){
+		for(int i=0;i<indices.size();i++){
+			float square_error =	(plane_parameters[0]*cloud->points[indices[i]].x
+									+plane_parameters[1]*cloud->points[indices[i]].y
+									+plane_parameters[2]*cloud->points[indices[i]].z
+									+plane_parameters[3])
+									*(plane_parameters[0]*cloud->points[indices[i]].x
+									+plane_parameters[1]*cloud->points[indices[i]].y
+									+plane_parameters[2]*cloud->points[indices[i]].z
+									+plane_parameters[3])
+									/(plane_parameters[0]*plane_parameters[0]
+									+plane_parameters[1]*plane_parameters[1]
+									+plane_parameters[2]*plane_parameters[2]);
+			sum_square_error += square_error/(float)indices.size();
+		}
+		std::cout << "indices.size() = " << indices.size() << std::endl;
+		std::cout << "sum_square_error = " << sum_square_error << std::endl;
+		std::cout << "curvature = " << plane_parameters[3] << std::endl;
+		if(sum_square_error<0.01&&plane_parameters[2]<0.8){
 			planecloud->points[num_normals] = cloud->points[i];
 			normal->points[num_normals].normal_x = plane_parameters[0];
 			normal->points[num_normals].normal_y = plane_parameters[1];
 			normal->points[num_normals].normal_z = plane_parameters[2];
+			fitting_errors.push_back(sum_square_error);
 			num_normals++;
-		// }
+		}
 	}
 	for(int i=0;i<num_normals;i++)	std::cout << normal->points[i] << std::endl;
+	// for(int i=0;i<num_normals;i++)	std::cout << i << " : " << fitting_errors[i] << std::endl;
 }
 
-void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr g_point, pcl::PointCloud<pcl::Normal>::Ptr g_vector)
+void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr g_point, pcl::PointCloud<pcl::Normal>::Ptr g_vector, std::vector<float> fitting_errors)
 {
+	for(int i=0;i<normal->points.size();i++)	std::cout << i << " : " << fitting_errors[i] << std::endl;
 	pcl::PointCloud<pcl::PointXYZ> tmp_cloud;
 	tmp_cloud.points.resize(normal->points.size());
 	for(int i=0;i<normal->points.size();i++){
 		tmp_cloud.points[i].x = normal->points[i].normal_x;
 		tmp_cloud.points[i].y = normal->points[i].normal_y;
 		tmp_cloud.points[i].z = normal->points[i].normal_z;
+		
+		tmp_cloud.points[i].x /= fitting_errors[i];
+		tmp_cloud.points[i].y /= fitting_errors[i];
+		tmp_cloud.points[i].z /= fitting_errors[i];
 	}
 	Eigen::Vector4f g_parameters;
 	float curvature; 
@@ -140,17 +133,18 @@ int main(int argc, char** argv)
 	// randomize_cloud(cloud, num_points);
 	// print_cloud(cloud, num_points);
 	pcl::PointCloud<pcl::Normal>::Ptr normal (new pcl::PointCloud<pcl::Normal>);
+	normal->points.resize(num_points);
+	// estimate_normal(cloud, normal);
 
-	estimate_normal(cloud, normal, planecloud);
-
-	Eigen::Vector4f plane_parameters;
-	// plane_fitting(cloud, normal, planecloud);
+	// Eigen::Vector4f plane_parameters;
+	std::vector<float> fitting_errors;
+	plane_fitting(cloud, normal, planecloud, fitting_errors);
 	
 	pcl::PointCloud<pcl::PointXYZ>::Ptr g_point (new pcl::PointCloud<pcl::PointXYZ>);
 	g_point->points.resize(1);
 	pcl::PointCloud<pcl::Normal>::Ptr g_vector (new pcl::PointCloud<pcl::Normal>);
 	g_vector->points.resize(1);
-	estimate_g_vector(normal, g_point, g_vector);
+	estimate_g_vector(normal, g_point, g_vector, fitting_errors);
 
 	pcl::visualization::PCLVisualizer viewer("Test Point Cloud Viewer");
 	viewer.addPointCloud(cloud, "cloud");
