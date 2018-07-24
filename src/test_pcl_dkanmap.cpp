@@ -62,14 +62,14 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 		Eigen::Vector4f plane_parameters;
 		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
 		float sum_square_error = 0.0;
-		for(int i=0;i<indices.size();i++){
-			float square_error =	(plane_parameters[0]*cloud->points[indices[i]].x
-									+plane_parameters[1]*cloud->points[indices[i]].y
-									+plane_parameters[2]*cloud->points[indices[i]].z
+		for(int j=0;j<indices.size();j++){
+			float square_error =	(plane_parameters[0]*cloud->points[indices[j]].x
+									+plane_parameters[1]*cloud->points[indices[j]].y
+									+plane_parameters[2]*cloud->points[indices[j]].z
 									+plane_parameters[3])
-									*(plane_parameters[0]*cloud->points[indices[i]].x
-									+plane_parameters[1]*cloud->points[indices[i]].y
-									+plane_parameters[2]*cloud->points[indices[i]].z
+									*(plane_parameters[0]*cloud->points[indices[j]].x
+									+plane_parameters[1]*cloud->points[indices[j]].y
+									+plane_parameters[2]*cloud->points[indices[j]].z
 									+plane_parameters[3])
 									/(plane_parameters[0]*plane_parameters[0]
 									+plane_parameters[1]*plane_parameters[1]
@@ -80,10 +80,17 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 		std::cout << "sum_square_error = " << sum_square_error << std::endl;
 		std::cout << "curvature = " << plane_parameters[3] << std::endl;
 		if(sum_square_error<0.01&&plane_parameters[2]<0.8){
-			planecloud->points[num_normals] = cloud->points[i];
-			normal->points[num_normals].normal_x = plane_parameters[0];
-			normal->points[num_normals].normal_y = plane_parameters[1];
-			normal->points[num_normals].normal_z = plane_parameters[2];
+			// planecloud->points[num_normals] = cloud->points[i];
+			// normal->points[num_normals].normal_x = plane_parameters[0];
+			// normal->points[num_normals].normal_y = plane_parameters[1];
+			// normal->points[num_normals].normal_z = plane_parameters[2];
+			
+			
+			planecloud->points.push_back(cloud->points[i]);
+			pcl::Normal tmp_normal;
+			tmp_normal.normal_x = plane_parameters[0];
+			tmp_normal.normal_y = plane_parameters[1];
+			tmp_normal.normal_z = plane_parameters[2];
 			fitting_errors.push_back(sum_square_error);
 			num_normals++;
 		}
@@ -127,13 +134,13 @@ int main(int argc, char** argv)
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::io::loadPCDFile ("/home/amsl/ros_catkin_ws/src/beginner_tutorials/map_0.pcd", *cloud);
 	int num_points = cloud->points.size();
-	cloud->points.resize(num_points);
+	// cloud->points.resize(num_points);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud (new pcl::PointCloud<pcl::PointXYZ>);
-	planecloud->points.resize(num_points);
+	// planecloud->points.resize(num_points);
 	// randomize_cloud(cloud, num_points);
 	// print_cloud(cloud, num_points);
 	pcl::PointCloud<pcl::Normal>::Ptr normal (new pcl::PointCloud<pcl::Normal>);
-	normal->points.resize(num_points);
+	// normal->points.resize(num_points);
 	// estimate_normal(cloud, normal);
 
 	// Eigen::Vector4f plane_parameters;
