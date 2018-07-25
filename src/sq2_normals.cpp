@@ -279,7 +279,7 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 	
 	const float fitting_error_threshold = 0.01;
 	while(ros::ok()){
-		if(normal_sphere->points.size()<3)	break;
+		if(normal_sphere->points.size()<k)	break;
 		std::vector<int> pointIdxNKNSearch(k);
 		std::vector<float> pointNKNSquaredDistance(k);
 		kdtree.setInputCloud(normal_sphere);
@@ -320,9 +320,12 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 		float w1 = features[shortest_dist_index].weight;
 		// float w1 = fitting_error_threshold/fitting_errors[shortest_dist_index] * num_members[shortest_dist_index]/(float)normals->points.size();
 		std::vector<float> n2 = {
-			normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].x,
-			normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].y,
-			normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].z};
+			// normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].x,
+			// normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].y,
+			// normal_sphere->points[pointIdxNKNSearch[shortest_dist_index]].z
+			normal_sphere->points[features[shortest_dist_index].neighbor].x,
+			normal_sphere->points[features[shortest_dist_index].neighbor].y,
+			normal_sphere->points[features[shortest_dist_index].neighbor].z};
 		float w2 = features[features[shortest_dist_index].neighbor_index].weight;
 		// float w2 = fitting_error_threshold/fitting_errors[pointIdxNKNSearch[shortest_dist_index]] * num_members[pointIdxNKNSearch[shortest_dist_index]]/(float)normals->points.size();
 
