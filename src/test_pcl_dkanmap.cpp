@@ -84,13 +84,14 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 			// normal->points[num_normals].normal_x = plane_parameters[0];
 			// normal->points[num_normals].normal_y = plane_parameters[1];
 			// normal->points[num_normals].normal_z = plane_parameters[2];
-			
-			
+	
 			planecloud->points.push_back(cloud->points[i]);
+			flipNormalTowardsViewpoint (cloud->points[i], 0.0, 0.0, 0.5, plane_parameters);
 			pcl::Normal tmp_normal;
 			tmp_normal.normal_x = plane_parameters[0];
 			tmp_normal.normal_y = plane_parameters[1];
 			tmp_normal.normal_z = plane_parameters[2];
+			normal->points.push_back(tmp_normal);
 			fitting_errors.push_back(sum_square_error);
 			num_normals++;
 		}
@@ -101,7 +102,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pc
 
 void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud<pcl::PointXYZ>::Ptr g_point, pcl::PointCloud<pcl::Normal>::Ptr g_vector, std::vector<float> fitting_errors)
 {
-	for(int i=0;i<normal->points.size();i++)	std::cout << i << " : " << fitting_errors[i] << std::endl;
+	// for(int i=0;i<normal->points.size();i++)	std::cout << i << " : " << fitting_errors[i] << std::endl;
 	pcl::PointCloud<pcl::PointXYZ> tmp_cloud;
 	tmp_cloud.points.resize(normal->points.size());
 	for(int i=0;i<normal->points.size();i++){
@@ -109,9 +110,9 @@ void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud
 		tmp_cloud.points[i].y = normal->points[i].normal_y;
 		tmp_cloud.points[i].z = normal->points[i].normal_z;
 		
-		tmp_cloud.points[i].x /= fitting_errors[i];
-		tmp_cloud.points[i].y /= fitting_errors[i];
-		tmp_cloud.points[i].z /= fitting_errors[i];
+		// tmp_cloud.points[i].x /= fitting_errors[i];
+		// tmp_cloud.points[i].y /= fitting_errors[i];
+		// tmp_cloud.points[i].z /= fitting_errors[i];
 	}
 	Eigen::Vector4f g_parameters;
 	float curvature; 
