@@ -99,7 +99,7 @@ std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float 
 
 // void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
 // void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<float>& fitting_errors, std::vector<int>& num_refpoints)
-void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<FEATURES> features)
+void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<FEATURES>& features)
 {
 	std::cout << "-----PLANE FITTING-----" <<  std::endl;
 	const float radius = 0.5;
@@ -126,11 +126,10 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 		searchpoint.z = cloud->points[i].z;
 		// std::cout << "start finding kdtree" <<  std::endl;
 		std::vector<int> indices = kdtree_search(cloud, radius, searchpoint);
-
 		Eigen::Vector4f plane_parameters;
 		// setViewPoint (float vpx, float vpy, float vpz);
 		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
-		if(plane_parameters[2]>0.8||plane_parameters[2]<-0.8){
+		if(indices.size()<3||plane_parameters[2]>0.8||plane_parameters[2]<-0.8){
 			// std::cout << "continue" << std::endl;
 			continue;
 		}
@@ -167,7 +166,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 			// fitting_errors.push_back(sum_square_error);
 			// num_refpoints.push_back(indices.size());
 			features.push_back({indices.size(), sum_square_error, indices.size()/sum_square_error, i});
-			std::cout << features[features.size()-1].num_refpoints << std::endl;
+			// std::cout << "features[features.size()-1].num_refpoints = " << features[features.size()-1].num_refpoints << std::endl;
 			// num_normals++;
 		}
 	}
@@ -220,22 +219,23 @@ void reset(void)
 void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<FEATURES> features)
 {
 	std::cout << "-----CLUSTERING-----" << std::endl;
-	std::cout << "normals->points.size()" << normals->points.size() << std::endl;
+	std::cout << "normals->points.size() = " << normals->points.size() << std::endl;
 	pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere (new pcl::PointCloud<pcl::PointXYZ>);
-	normal_sphere->points.resize(normals->points.size());
-	std::vector<float> weight;
+	// normal_sphere->points.resize(normals->points.size());
+	// std::vector<float> weight;
 	
 	for(int i=0;i<normals->points.size();i++){
-		normal_sphere->points[i].x = normals->points[i].normal_x;
-		normal_sphere->points[i].y = normals->points[i].normal_y;
-		normal_sphere->points[i].z = normals->points[i].normal_z;
+		// normal_sphere->points[i].x = normals->points[i].normal_x;
+		// normal_sphere->points[i].y = normals->points[i].normal_y;
+		// normal_sphere->points[i].z = normals->points[i].normal_z;
+		normal_sphere->points.push_back({normals->points[i].normal_x, normals->points[i].normal_y, normals->points[i].normal_z});
 	}
 	
 	// std::vector<int> num_members(normal_sphere->points.size(), 1);
 	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
-	int k = 1;
-	std::vector<int> pointIdxNKNSearch(k);
-	std::vector<float> pointNKNSquaredDistance(k);
+	int k = 2;
+	// std::vector<int> pointIdxNKNSearch(k);
+	// std::vector<float> pointNKNSquaredDistance(k);
 	pcl::PointXYZ searchpoint;
 	// std::vector<int> nearest_index_list;
 	// std::vector<float> nearest_distance_list;
@@ -279,28 +279,40 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 	
 	const float fitting_error_threshold = 0.01;
 	while(ros::ok()){
-		if(normal_sphere->points.size()<2)	break;
+		if(normal_sphere->points.size()<3)	break;
+		std::vector<int> pointIdxNKNSearch(k);
+		std::vector<float> pointNKNSquaredDistance(k);
 		kdtree.setInputCloud(normal_sphere);
 		// std::vector<int> nearest_index_list;
 		// std::vector<float> nearest_distance_list;
-		float shortest_dist_index = 0;	//A pair of points[shortest_dist_index] and points[features[neighbor_index]] is the closest
+		float shortest_dist_index;	//A pair of points[shortest_dist_index] and points[features[neighbor_index]] is the closest
 		float shortest_distance;
 		for(int i=0;i<normal_sphere->points.size();i++){
 			searchpoint = normal_sphere->points[i];
-			if(kdtree.nearestKSearch(searchpoint, k, pointIdxNKNSearch, pointNKNSquaredDistance)<0){
+			if(kdtree.nearestKSearch(searchpoint, k, pointIdxNKNSearch, pointNKNSquaredDistance)<=0){
 				std::cout << "error" << std::endl;
 				break;
 			}
-			features[i].neighbor_index = pointNKNSquaredDistance[0];
+			// std::cout << "pointIdxNKNSearch = " << pointIdxNKNSearch[0] << std::endl;
+			features[i].neighbor_index = pointIdxNKNSearch[1];
+			std::cout << i << ":" << "features[i].neighbor_index = " << features[i].neighbor_index << std::endl;
 			// nearest_index_list.push_back(pointIdxNKNSearch[0]);
 			// nearest_distance_list.push_back(pointNKNSquaredDistance[0]);
-			if(i==0)	shortest_distance = pointNKNSquaredDistance[0];
-			else if(pointNKNSquaredDistance[0]<shortest_distance){
+			if(i==0){
+				shortest_dist_index = 0;
+				shortest_distance = pointNKNSquaredDistance[1];
+			}
+			else if(pointNKNSquaredDistance[1]<shortest_distance){
 				shortest_dist_index = i;
-				shortest_distance = pointNKNSquaredDistance[0];
+				shortest_distance = pointNKNSquaredDistance[1];
 			}
 		}
-		if(shortest_distance>0.001) break;
+		std::cout << "shortest_dist_index = " << shortest_dist_index << std::endl;
+		std::cout << "shortest_distance = " << shortest_distance << std::endl;
+		if(shortest_distance>0.01){
+			std::cout << "end marge" << std::endl;
+			break;
+		}
 		std::vector<float> n1 = {
 			normal_sphere->points[shortest_dist_index].x,
 			normal_sphere->points[shortest_dist_index].y,
@@ -324,7 +336,7 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 
 		// num_members[shortest_dist_index] += num_members[pointIdxNKNSearch[shortest_dist_index]];
 
-		normal_sphere->points.erase(normal_sphere->points.begin()+pointIdxNKNSearch[shortest_dist_index]);
+		normal_sphere->points.erase(normal_sphere->points.begin()+features[shortest_dist_index].neighbor_index);
 		features.erase(features.begin()+features[shortest_dist_index].neighbor_index);	
 		// fitting_errors.erase(fitting_errors.begin()+pointIdxNKNSearch[shortest_dist_index]);
 		// num_members.erase(num_members.begin()+pointIdxNKNSearch[shortest_dist_index]);
@@ -402,7 +414,7 @@ int main(int argc, char** argv)
 			std::vector<FEATURES> features;
 			// plane_fitting(normals, fitting_errors, num_refpoints);
 			plane_fitting(normals, features);
-			// clustering(normals, features);
+			clustering(normals, features);
 			// estimate_g_vector(normals, g_point, g_vector);
 			
 			/*-----publish-----*/
