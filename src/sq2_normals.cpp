@@ -295,7 +295,7 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 			}
 			// std::cout << "pointIdxNKNSearch = " << pointIdxNKNSearch[0] << std::endl;
 			features[i].neighbor_index = pointIdxNKNSearch[1];
-			std::cout << i << ":" << "features[i].neighbor_index = " << features[i].neighbor_index << std::endl;
+			std::cout << i << ":features[i].neighbor_index = " << features[i].neighbor_index << std::endl;
 			// nearest_index_list.push_back(pointIdxNKNSearch[0]);
 			// nearest_distance_list.push_back(pointNKNSquaredDistance[0]);
 			if(i==0){
@@ -335,9 +335,13 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 		features[shortest_dist_index].weight = features[shortest_dist_index].num_refpoints/features[shortest_dist_index].fitting_error;
 
 		// num_members[shortest_dist_index] += num_members[pointIdxNKNSearch[shortest_dist_index]];
-
+		
+		std::cout << " erase " << features[shortest_dist_index].neighbor_index << std::endl;
 		normal_sphere->points.erase(normal_sphere->points.begin()+features[shortest_dist_index].neighbor_index);
-		features.erase(features.begin()+features[shortest_dist_index].neighbor_index);	
+		features.erase(features.begin()+features[shortest_dist_index].neighbor_index);
+		for(int j=0;j<features.size();j++){
+			std::cout << j << " : features[j].neighbor_index = " << features[j].neighbor_index << std::endl;
+		}
 		// fitting_errors.erase(fitting_errors.begin()+pointIdxNKNSearch[shortest_dist_index]);
 		// num_members.erase(num_members.begin()+pointIdxNKNSearch[shortest_dist_index]);
 	}
