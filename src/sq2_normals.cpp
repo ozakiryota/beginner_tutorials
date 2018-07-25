@@ -215,6 +215,48 @@ void reset(void)
 	//Do I need to reset anything during the cycle?
 }
 
+void marge_vectors__(std::vector<float>& n1, std::vector<float> n2, float w1, float w2)
+{
+	std::vector<float> n1_ = {
+		acos(1.0/n1[0]),
+		acos(1.0/n1[1]),
+		acos(1.0/n1[2])};
+	std::vector<float> n2_ = {
+		acos(1.0/n2[0]),
+		acos(1.0/n2[1]),
+		acos(1.0/n2[2])};
+	n1[0] = cos(w1*n1_[0] + w2*n2_[0])/(w1 + w2);
+	n1[1] = cos(w1*n1_[1] + w2*n2_[1])/(w1 + w2);
+	n1[2] = cos(w1*n1_[2] + w2*n2_[2])/(w1 + w2);
+}
+
+std::vector<float> marge_vectors(std::vector<float> v1, std::vector<float> v2, float w1, float w2)
+{
+	std::cout << "-----MARGE VECTORS-----" << std::endl;
+	std::vector<float> v;
+	float norm = 0.0;
+	for(size_t i=0;i<v1.size();i++){
+		v.push_back(w1*v1[i] + w2*v2[i]);
+		norm += v[i]*v[i];
+	}
+	norm = sqrt(norm);
+	if(norm==0.0)	std::cout << "norm==0.0" << std::endl;
+	for(size_t i=0; i<n1.size();i++)	v[i] /= norm;
+	return v;
+}
+
+void marge_vectors_(std::vector<float>& n1, std::vector<float> n2, float w1, float w2)
+{
+	std::cout << "-----MARGE VECTORS-----" << std::endl;
+	float norm = 0.0;
+	for(size_t i=0; i<n1.size();i++){
+		n1[i] = w1*n1[i] + w2*n2[i];
+		norm += n1[i]*n1[i];
+	}
+	norm = sqrt(norm);
+	for(size_t i=0; i<n1.size();i++)	n1 /= norm;
+}
+
 // void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<float> fitting_errors, std::vector<int> num_refpoints)
 void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<FEATURES> features)
 {
