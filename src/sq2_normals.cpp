@@ -15,10 +15,15 @@
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 // std::vector<int> num_subpoints;
 // ros::Time tm;
+std::vector<float> g_est ={
+	0.0,
+	0.0,
+	1.0};
 
 struct	FEATURES{
 	size_t num_refpoints;
 	float fitting_error;
+	float ang_from_g_est;
 	float weight;
 	int neighbor_index;
 };
@@ -126,13 +131,26 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 		searchpoint.z = cloud->points[i].z;
 		// std::cout << "start finding kdtree" <<  std::endl;
 		std::vector<int> indices = kdtree_search(cloud, radius, searchpoint);
-		Eigen::Vector4f plane_parameters;
-		// setViewPoint (float vpx, float vpy, float vpz);
-		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
-		if(indices.size()<3||plane_parameters[2]>0.8||plane_parameters[2]<-0.8){
-			// std::cout << "continue" << std::endl;
+		if(indices.size()<3){
+			std::cout << "indices.size()<3, then skip" << std::endl;
 			continue;
 		}
+		Eigen::Vector4f plane_parameters;
+		// setViewPoint (float vpx, float vpy, float vpz);
+		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);) 
+		 std::cout << "norm of normal = " << sqrt(plane_parameters[0]*plane_parameters[0] + plane_parameters[1]*plane_parameters[1] + plane_parameters[2]*plane_parameters[2]) << std::endl;
+		float tmp_ang_from_g_est = acos(plane_parameters[0]*g_est[0] + plane_parameters[1]*g_est[1] + plane_parameters[2]*g_est[2]);
+		std::cout << "tmp_ang_from_g_est = " << tmp_ang_from_g_est << std::endl;
+		std::cout << "abs(tmp_ang_from_g_est) = " << abs(tmp_ang_from_g_est) << std::endl
+		const float ang_threshold = 10.0/180.0*M_PI;
+		if(abs(tmp_ang_from_g_est)<ang_threshold || abs(tmp_ang_from_g_est)<(M_PI-ang_threshold)){
+			std::cout << "tmp_ang_from_g_est is too small or large, then skip" << std::endl;
+			continue;
+		}
+		//if(indices.size()<3||plane_parameters[2]>0.8||plane_parameters[2]<-0.8){
+			// std::cout << "continue" << std::endl;
+			// continue;
+		// }
 		float sum_square_error = 0.0;
 		// std::cout << "start caluculating square_error" <<  std::endl;
 		for(int j=0;j<indices.size();j++){
@@ -165,7 +183,12 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 			normals->points.push_back(tmp_normal);
 			// fitting_errors.push_back(sum_square_error);
 			// num_refpoints.push_back(indices.size());
-			features.push_back({indices.size(), sum_square_error, indices.size()/sum_square_error, i});
+			features.push_back({
+				indices.size(),
+				sum_square_error,
+				tmp_ang_from_g_est,
+				indices.size()/sum_square_error,
+				i});
 			// std::cout << "features[features.size()-1].num_refpoints = " << features[features.size()-1].num_refpoints << std::endl;
 			// num_normals++;
 		}
@@ -319,7 +342,7 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 	}
 	*/
 	
-	const float fitting_error_threshold = 0.01;
+	// const float fitting_error_threshold = 0.01;
 	while(ros::ok()){
 		if(normal_sphere->points.size()<k)	break;
 		std::vector<int> pointIdxNKNSearch(k);
@@ -372,9 +395,13 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 		// float w2 = fitting_error_threshold/fitting_errors[pointIdxNKNSearch[shortest_dist_index]] * num_members[pointIdxNKNSearch[shortest_dist_index]]/(float)normals->points.size();
 
 		std::cout << "marge" << std::endl;
-		normal_sphere->points[shortest_dist_index].x = (n1[0]*w1 + n2[0]*w2)/(w1 + w2);
-		normal_sphere->points[shortest_dist_index].y = (n1[1]*w1 + n2[1]*w2)/(w1 + w2);
-		normal_sphere->points[shortest_dist_index].z = (n1[2]*w1 + n2[2]*w2)/(w1 + w2);
+		std::vector<float> marged_n = marge_vectors(n1, n2, w1, w2);
+		normal_sphere->points[shortest_dist_index].x = marged_n[0];
+		normal_sphere->points[shortest_dist_index].x = marged_n[1];
+		normal_sphere->points[shortest_dist_index].x = marged_n[2];
+		// normal_sphere->points[shortest_dist_index].x = (n1[0]*w1 + n2[0]*w2)/(w1 + w2);
+		// normal_sphere->points[shortest_dist_index].y = (n1[1]*w1 + n2[1]*w2)/(w1 + w2);
+		// normal_sphere->points[shortest_dist_index].z = (n1[2]*w1 + n2[2]*w2)/(w1 + w2);
 		features[shortest_dist_index].num_refpoints += features[features[shortest_dist_index].neighbor_index].num_refpoints;
 		features[shortest_dist_index].fitting_error = (features[shortest_dist_index].fitting_error + features[features[shortest_dist_index].neighbor_index].fitting_error)/2.0;
 		features[shortest_dist_index].weight = features[shortest_dist_index].num_refpoints/features[shortest_dist_index].fitting_error;
