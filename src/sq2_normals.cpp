@@ -176,7 +176,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 			tmp_normal.x = cloud->points[i].x;
 			tmp_normal.y = cloud->points[i].y;
 			tmp_normal.z = cloud->points[i].z;
-			flipNormalTowardsViewpoint (tmp_normal, 0.0, 0.0, 0.5, plane_parameters);
+			flipNormalTowardsViewpoint (tmp_normal, 0.0, 0.0, 0.1, plane_parameters);
 			tmp_normal.normal_x = plane_parameters[0];
 			tmp_normal.normal_y = plane_parameters[1];
 			tmp_normal.normal_z = plane_parameters[2];
@@ -199,24 +199,25 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 }
 	// features[shortest_dist_index].fitting_errors[shortest_dist_index] = (fitting_errors[shortest_dist_index] + fitting_errors[pointIdxNKNSearch[shortest_dist_index]])/2.0;
 
-bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZINormal>::Ptr main_normals, pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector)
+// bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZINormal>::Ptr main_normals, pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector)
+bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector)
 {
 	std::cout << "-----ESTIMATE G_VECTOR-----" << std::endl;
-	if(main_normals->points.size()<2){
-		std::cout << "Failed because main_normals has less than 2 normals" << std::endl;
+	if(normal_sphere->points.size()<2){
+		std::cout << "Failed because normal_sphere has less than 2 normals" << std::endl;
 		return false;
 	}
-	pcl::PointCloud<pcl::PointXYZ> normal_sphere;
-	normal_sphere.points.resize(main_normals->points.size());
-	for(int i=0;i<main_normals->points.size();i++){
-		normal_sphere.points[i].x = main_normals->points[i].normal_x;
-		normal_sphere.points[i].y = main_normals->points[i].normal_y;
-		normal_sphere.points[i].z = main_normals->points[i].normal_z;
-	}
+	// pcl::PointCloud<pcl::PointXYZ> normal_sphere;
+	// normal_sphere.points.resize(main_normals->points.size());
+	// for(int i=0;i<main_normals->points.size();i++){
+	//	normal_sphere.points[i].x = main_normals->points[i].normal_x;
+	//	normal_sphere.points[i].y = main_normals->points[i].normal_y;
+	//	normal_sphere.points[i].z = main_normals->points[i].normal_z;
+	// }
 	g_vector->points[0].x = 0;
 	g_vector->points[0].y = 0;
 	g_vector->points[0].z = 1.0;
-	if(main_normals->points.size()==2){
+	if(normal_sphere->points.size()==2){
 		g_vector->points[0].normal_x = normal_sphere.points[0].y*normal_sphere.points[1].z - normal_sphere.points[0].z*normal_sphere.points[1].y;
 		g_vector->points[0].normal_y = normal_sphere.points[0].z*normal_sphere.points[1].x - normal_sphere.points[0].x*normal_sphere.points[1].z;
 		g_vector->points[0].normal_z = normal_sphere.points[0].x*normal_sphere.points[1].y - normal_sphere.points[0].y*normal_sphere.points[1].x;
@@ -281,20 +282,21 @@ void marge_vectors_(std::vector<float>& n1, std::vector<float> n2, float w1, flo
 }
 
 // void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<float> fitting_errors, std::vector<int> num_refpoints)
-void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<FEATURES> features)
+// void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<FEATURES> features)
+void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<FEATURES> features, pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere)
 {
 	std::cout << "-----CLUSTERING-----" << std::endl;
 	std::cout << "normals->points.size() = " << normals->points.size() << std::endl;
-	pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere (new pcl::PointCloud<pcl::PointXYZ>);
+	// pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere (new pcl::PointCloud<pcl::PointXYZ>);
 	// normal_sphere->points.resize(normals->points.size());
 	// std::vector<float> weight;
 	
-	for(int i=0;i<normals->points.size();i++){
+	// for(int i=0;i<normals->points.size();i++){
 		// normal_sphere->points[i].x = normals->points[i].normal_x;
 		// normal_sphere->points[i].y = normals->points[i].normal_y;
 		// normal_sphere->points[i].z = normals->points[i].normal_z;
-		normal_sphere->points.push_back({normals->points[i].normal_x, normals->points[i].normal_y, normals->points[i].normal_z});
-	}
+	//	normal_sphere->points.push_back({normals->points[i].normal_x, normals->points[i].normal_y, normals->points[i].normal_z});
+	// }
 	
 	// std::vector<int> num_members(normal_sphere->points.size(), 1);
 	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
@@ -419,6 +421,31 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 	}
 }
 
+void normals_to_points(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr points)
+{
+	for(size_t i=0;i<normals->points.size();i++){
+		pcl::PointXYZINormal tmp_point;
+		tmp_points.x = normals->points[i].normal_x;
+		tmp_points.y = normals->points[i].normal_y;
+		tmp_points.z = normals->points[i].normal_z;
+		points->points.push_back(tmp_normal);
+	}
+}
+
+void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals)
+{
+	for(size_t i=0;i<points->points.size();i++){
+		pcl::PointXYZINormal tmp_normal;
+		tmp_normal.x = 0.0;
+		tmp_normal.y = 0.0;
+		tmp_normal.z = 1.0;
+		tmp_normal.normal_x = points->points[i].x;
+		tmp_normal.normal_x = points->points[i].y;
+		tmp_normal.normal_x = points->points[i].z;
+		normals->points.push_back(tmp_normal);
+	}
+}
+
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "pc_normal");
@@ -480,9 +507,13 @@ int main(int argc, char** argv)
 		if(!cloud->points.empty()){
 			/*-----clouds------*/
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZINormal>);
+			pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere (new pcl::PointCloud<pcl::PointXYZ>);
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr main_normals (new pcl::PointCloud<pcl::PointXYZINormal>);
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointXYZINormal>);
 			g_vector->points.resize(1);
+			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals_before_clustering (new pcl::PointCloud<pcl::PointXYZINormal>);
+			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals_after_clustering (new pcl::PointCloud<pcl::PointXYZINormal>);
+
 
 			/*-----compute-----*/
 			// std::vector<float> fitting_errors;
@@ -490,8 +521,11 @@ int main(int argc, char** argv)
 			std::vector<FEATURES> features;
 			// plane_fitting(normals, fitting_errors, num_refpoints);
 			plane_fitting(normals, features);
-			clustering(normals, features);
-			// estimate_g_vector(normals, g_point, g_vector);
+			normals_to_points(normals, normal_sphere);
+			points_to_normals(normal_sphere, normals_before_clustering);
+			clustering(normals, features, normal_sphere);
+			points_to_normals(normal_sphere, normals_after_clustering);
+			// estimate_g_vector(normal_sphere, g_point, g_vector);
 			
 			/*-----publish-----*/
 			sensor_msgs::PointCloud2 roscloud_out;
@@ -510,15 +544,27 @@ int main(int argc, char** argv)
 			/*-----pcl viewer-----*/
 			viewer.removePointCloud("cloud");
 			viewer.addPointCloud(cloud, "cloud");
+			
 			viewer.removePointCloud("normals");
 			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals, 1, 0.2, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals");
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals"); 
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals");
+			
 			viewer.removePointCloud("g");
 			// viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(g_vector, g_vector, 1, 0.5, "g");
 			viewer.addPointCloudNormals<pcl::PointXYZINormal>(g_vector, 1, 0.5, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "g");
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g"); 
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g");
+			
+			viewer.removePointCloud("normals_before_clustering");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_before_clustering, 1, 0.5, "normals_before_clustering");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "normals_before_clustering");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "normals_before_clustering");
+			
+			viewer.removePointCloud("normals_after_clustering");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_before_clustering, 1, 0.5, "normals_after_clustering");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "normals_after_clustering");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "normals_after_clustering");
 		}
 		// viewer->spinOnce(100);
 		// boost::this_thread::sleep(boost::posix_time::microseconds(100000));
