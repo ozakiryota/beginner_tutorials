@@ -26,6 +26,7 @@ struct	FEATURES{
 	float ang_from_g_est;
 	float weight;
 	int neighbor_index;
+	int num_groups;
 };
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
@@ -102,6 +103,27 @@ std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float 
 	return pointIdxRadiusSearch; 
 }
 
+float angle_between_vectors(std::vector<float> v1, std::vector<float> v2)
+{
+	std::cout << "-ANGLE BETWEEN VECTORS-" << std::endl;
+	if(v1.size()!=v2.size()){
+		std::cout << "error: v1.size()!=v2.size()" << std::endl;
+		exit(1);
+		return -1;
+	}
+	float dot_product = 0.0;
+	float v1_norm = 0.0;
+	float v2_norm = 0.0;
+	for(size_t i=0;i<v1.size();i++){
+		dot_product += v1[i]*v2[i];
+		v1_norm += v1[i]*v1[i];
+		v2_norm += v2[i]*v2[i];
+	}
+	v1_norm = sqrt(v1_norm);
+	v2_norm = sqrt(v2_norm);
+	return fabs(acosf(dot_product/(v1_norm*v2_norm)));
+}
+
 // void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
 // void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<float>& fitting_errors, std::vector<int>& num_refpoints)
 void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<FEATURES>& features)
@@ -113,39 +135,51 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 	// std::vector<float> fitting_errors;
 	std::random_device rnd;
 	std::mt19937 mt(rnd());
-	std::uniform_int_distribution<> rand1000(1, 1000);
+	const int step_max = 200;
+	std::uniform_int_distribution<> rand_step(1, step_max);
 	// for(int i=0;i<cloud->points.size();i+=1000){
-	// int i = 0;
+	int i = -1;
 	// int step = rand1000(mt);
 	// std::cout << "step = " << step << std::endl;
-	for(int i=0;i<cloud->points.size();i+=1000){
 	// while(i<cloud->points.size()){
-		// i += rand1000(mt);
+	while(ros::ok()){
+	// for(int i=0;i<cloud->points.size();i+=1000){
+		i += rand_step(mt);
 		// for(int i=0;i<cloud->points.size();i+=100){
 		// std::cout << i << std::endl;
-		// if(i>=cloud->points.size())	break;
+		if(i>=cloud->points.size())	break;
 		// std::cout << "loop" << std::endl;
 		pcl::PointXYZ searchpoint;
 		searchpoint.x = cloud->points[i].x;
 		searchpoint.y = cloud->points[i].y;
 		searchpoint.z = cloud->points[i].z;
 		// std::cout << "start finding kdtree" <<  std::endl;
+		if(searchpoint.z<0.3){
+			std::cout << ">> searchpoint.z<0.5, then skip" << std::endl;
+			continue;
+		}
 		std::vector<int> indices = kdtree_search(cloud, radius, searchpoint);
+		std::cout << "indices.size() = " << indices.size() << std::endl;
 		if(indices.size()<3){
-			std::cout << "indices.size()<3, then skip" << std::endl;
+			std::cout << ">> indices.size()<3, then skip" << std::endl;
 			continue;
 		}
 		Eigen::Vector4f plane_parameters;
 		// setViewPoint (float vpx, float vpy, float vpz);
 		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
-		std::cout << "norm of normal = " << sqrt(plane_parameters[0]*plane_parameters[0] + plane_parameters[1]*plane_parameters[1] + plane_parameters[2]*plane_parameters[2]) << std::endl;
-		float tmp_ang_from_g_est = acos(plane_parameters[0]*g_est[0] + plane_parameters[1]*g_est[1] + plane_parameters[2]*g_est[2]);
-		std::cout << "tmp_ang_from_g_est = " << tmp_ang_from_g_est << std::endl;
-		std::cout << "fabs(tmp_ang_from_g_est) = " << fabs(tmp_ang_from_g_est) << std::endl;
+		// std::cout << "norm of normal = " << sqrt(plane_parameters[0]*plane_parameters[0] + plane_parameters[1]*plane_parameters[1] + plane_parameters[2]*plane_parameters[2]) << std::endl;
+		
+		float tmp_ang_from_g_est = fabs(acosf(plane_parameters[0]*g_est[0] + plane_parameters[1]*g_est[1] + plane_parameters[2]*g_est[2]));
+		// std::coutimate a covariance matrix from a set of points in PCL, you can use: << "tmp_ang_from_g_est = " << tmp_ang_from_g_est << std::endl;
+		// std::vector<float> a = {plane_parameters[0], plane_parameters[1], plane_parameters[2]};
+		// tmp_ang_from_g_est = angle_between_vectors(a, g_est);
+		// std::cout << "tmp_ang_from_g_est = " << tmp_ang_from_g_est << std::endl;
+
+		// std::cout << "fabs(tmp_ang_from_g_est) = " << fabs(tmp_ang_from_g_est) << std::endl;
 		const float ang_threshold = 30.0/180.0*M_PI;
-		std::cout << "ang_threshold = " << ang_threshold << std::endl;
+		// std::cout << "ang_threshold = " << ang_threshold << std::endl;
 		if(fabs(tmp_ang_from_g_est)<ang_threshold || fabs(tmp_ang_from_g_est)>(M_PI-ang_threshold)){
-			std::cout << "tmp_ang_from_g_est is too small or large, then skip" << std::endl;
+			std::cout << ">> tmp_ang_from_g_est is too small or large, then skip" << std::endl;
 			continue;
 		}
 		//if(indices.size()<3||plane_parameters[2]>0.8||plane_parameters[2]<-0.8){
@@ -168,10 +202,12 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 									+plane_parameters[2]*plane_parameters[2]);
 			sum_square_error += square_error/(float)indices.size();
 		}
-		std::cout << "indices.size() = " << indices.size() << std::endl;
+		// std::cout << "indices.size() = " << indices.size() << std::endl;
 		std::cout << "sum_square_error = " << sum_square_error << std::endl;
 		// std::cout << "curvature = " << plane_parameters[3] << std::endl;
-		if(sum_square_error<0.01){
+		const float sum_square_error_threshold = 0.1;
+		if(sum_square_error>sum_square_error_threshold)	std::cout << ">> sum_square_error is too large, then skip" << std::endl;
+		if(sum_square_error<sum_square_error_threshold){
 			// planecloud->points[num_normals] = cloud->points[i];
 			pcl::PointXYZINormal tmp_normal;
 			tmp_normal.x = cloud->points[i].x;
@@ -189,7 +225,8 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 				sum_square_error,
 				tmp_ang_from_g_est,
 				indices.size()/sum_square_error,
-				i});
+				i,
+				1});
 			// std::cout << "features[features.size()-1].num_refpoints = " << features[features.size()-1].num_refpoints << std::endl;
 			// num_normals++;
 		}
@@ -222,6 +259,7 @@ bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::P
 		g_vector->points[0].normal_x = normal_sphere->points[0].y*normal_sphere->points[1].z - normal_sphere->points[0].z*normal_sphere->points[1].y;
 		g_vector->points[0].normal_y = normal_sphere->points[0].z*normal_sphere->points[1].x - normal_sphere->points[0].x*normal_sphere->points[1].z;
 		g_vector->points[0].normal_z = normal_sphere->points[0].x*normal_sphere->points[1].y - normal_sphere->points[0].y*normal_sphere->points[1].x;
+		std::cout << "g_vector->points[0] = " << g_vector->points[0] << std::endl;
 		return true;
 	}
 	Eigen::Vector4f g_parameters;
@@ -232,6 +270,7 @@ bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::P
 	g_vector->points[0].normal_x = -g_parameters[0];
 	g_vector->points[0].normal_y = -g_parameters[1];
 	g_vector->points[0].normal_z = -g_parameters[2];
+	std::cout << "g_vector->points[0] = " << g_vector->points[0] << std::endl;
 	return true;
 }
 
@@ -240,7 +279,7 @@ void reset(void)
 	//Do I need to reset anything during the cycle?
 }
 
-void marge_vectors__(std::vector<float>& n1, std::vector<float> n2, float w1, float w2)
+void merge_vectors__(std::vector<float>& n1, std::vector<float> n2, float w1, float w2)
 {
 	std::vector<float> n1_ = {
 		acosf(1.0/n1[0]),
@@ -255,24 +294,29 @@ void marge_vectors__(std::vector<float>& n1, std::vector<float> n2, float w1, fl
 	n1[2] = cos(w1*n1_[2] + w2*n2_[2])/(w1 + w2);
 }
 
-std::vector<float> marge_vectors(std::vector<float> v1, std::vector<float> v2, float w1, float w2)
+std::vector<float> merge_vectors(std::vector<float> v1, std::vector<float> v2, float w1, float w2)
 {
-	std::cout << "-----MARGE VECTORS-----" << std::endl;
+	std::cout << "---MERGE VECTORS---" << std::endl;
 	std::vector<float> v;
 	float norm = 0.0;
 	for(size_t i=0;i<v1.size();i++){
-		v.push_back(w1*v1[i] + w2*v2[i]);
+		// v.push_back(w1*v1[i] + w2*v2[i]);
+		v.push_back((w1*v1[i] + w2*v2[i])/(w1 + w2));
 		norm += v[i]*v[i];
 	}
 	norm = sqrt(norm);
-	if(norm==0.0)	std::cout << "norm==0.0" << std::endl;
+	// std::cout << "norm = " << norm << std::endl;
+	if(norm==0.0){
+		std::cout << "norm == 0.0" << std::endl;
+		exit(1);
+	}
 	for(size_t i=0; i<v1.size();i++)	v[i] /= norm;
 	return v;
 }
 
-void marge_vectors_(std::vector<float>& n1, std::vector<float> n2, float w1, float w2)
+void merge_vectors_(std::vector<float>& n1, std::vector<float> n2, float w1, float w2)
 {
-	std::cout << "-----MARGE VECTORS-----" << std::endl;
+	std::cout << "-----MERGE VECTORS-----" << std::endl;
 	float norm = 0.0;
 	for(size_t i=0; i<n1.size();i++){
 		n1[i] = w1*n1[i] + w2*n2[i];
@@ -347,7 +391,14 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 	
 	// const float fitting_error_threshold = 0.01;
 	while(ros::ok()){
-		if(normal_sphere->points.size()<k)	break;
+		// for(int j=0;j<normal_sphere->points.size();j++){
+		// 	std::cout << j << ": normal_sphere->points[j] = " << normal_sphere->points[j] << std::endl;
+		// 	std::cout << "   features[j].num_refpoints = " << features[j].num_refpoints << std::endl;
+		// }
+		if(normal_sphere->points.size()<k){
+			std::cout << "= END MERGE =" << std::endl;
+			break;
+		}
 		std::vector<int> pointIdxNKNSearch(k);
 		std::vector<float> pointNKNSquaredDistance(k);
 		kdtree.setInputCloud(normal_sphere);
@@ -359,13 +410,24 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 			searchpoint = normal_sphere->points[i];
 			if(kdtree.nearestKSearch(searchpoint, k, pointIdxNKNSearch, pointNKNSquaredDistance)<=0){
 				std::cout << "error" << std::endl;
+				// exit(1);
 				break;
 			}
 			// std::cout << "pointIdxNKNSearch = " << pointIdxNKNSearch[0] << std::endl;
 			features[i].neighbor_index = pointIdxNKNSearch[1];
-			std::cout << i << ":features[i].neighbor_index = " << features[i].neighbor_index << std::endl;
+			// std::cout << i << ":features[i].neighbor_index = " << features[i].neighbor_index << std::endl;
 			// nearest_index_list.push_back(pointIdxNKNSearch[0]);
 			// nearest_distance_list.push_back(pointNKNSquaredDistance[0]);
+			
+			std::cout << i << ": normal_sphere->points[i] = " << normal_sphere->points[i] << std::endl;
+			std::cout << "   features[i].num_refpoints = " << features[i].num_refpoints << std::endl;
+			// std::cout << "   features[i].fitting_error = " << features[i].fitting_error << std::endl;
+			std::cout << "   1/features[i].fitting_error = " << 1/features[i].fitting_error << std::endl;
+			// std::cout << "   features[i].ang_from_g_est = " << features[i].ang_from_g_est << std::endl;
+			std::cout << "   1/fabs(M_PI/2.0 - features[i].ang_from_g_est) = " << 1/fabs(M_PI/2.0 - features[i].ang_from_g_est) << std::endl;
+			std::cout << "   features[i].num_groups = " << features[i].num_groups << std::endl;
+			std::cout << "   pointIdxNKNSearch[1] = " << pointNKNSquaredDistance[1] << std::endl;
+
 			if(i==0){
 				shortest_dist_index = 0;
 				shortest_distance = pointNKNSquaredDistance[1];
@@ -375,12 +437,17 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 				shortest_distance = pointNKNSquaredDistance[1];
 			}
 		}
-		std::cout << "shortest_dist_index = " << shortest_dist_index << std::endl;
+
+
+
+		// std::cout << "shortest_dist_index = " << shortest_dist_index << std::endl;
 		std::cout << "shortest_distance = " << shortest_distance << std::endl;
-		if(shortest_distance>0.01){
-			std::cout << "end marge" << std::endl;
+		const float shortest_distance_threshold = 0.3;
+		if(shortest_distance>shortest_distance_threshold){
+			std::cout << "= END MERGE =" << std::endl;
 			break;
 		}
+		std::cout << "MERGE " << shortest_dist_index << " & " << features[shortest_dist_index].neighbor_index << std::endl;
 		std::vector<float> n1 = {
 			normal_sphere->points[shortest_dist_index].x,
 			normal_sphere->points[shortest_dist_index].y,
@@ -396,29 +463,46 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 			normal_sphere->points[features[shortest_dist_index].neighbor_index].z};
 		float w2 = features[features[shortest_dist_index].neighbor_index].weight;
 		// float w2 = fitting_error_threshold/fitting_errors[pointIdxNKNSearch[shortest_dist_index]] * num_members[pointIdxNKNSearch[shortest_dist_index]]/(float)normals->points.size();
+		std::cout << "w1 = " << w1 << std::endl;
+		std::cout << "w2 = " << w2 << std::endl;
+		std::cout << "w1/(w1 + w2) = " << w1/(w1 + w2) << std::endl;
 
-		std::cout << "marge" << std::endl;
-		std::vector<float> marged_n = marge_vectors(n1, n2, w1, w2);
-		normal_sphere->points[shortest_dist_index].x = marged_n[0];
-		normal_sphere->points[shortest_dist_index].x = marged_n[1];
-		normal_sphere->points[shortest_dist_index].x = marged_n[2];
+		// std::cout << "merge" << std::endl;
+		std::vector<float> merged_n = merge_vectors(n1, n2, w1, w2);
+		normal_sphere->points[shortest_dist_index].x = merged_n[0];
+		normal_sphere->points[shortest_dist_index].y = merged_n[1];
+		normal_sphere->points[shortest_dist_index].z = merged_n[2];
 		// normal_sphere->points[shortest_dist_index].x = (n1[0]*w1 + n2[0]*w2)/(w1 + w2);
 		// normal_sphere->points[shortest_dist_index].y = (n1[1]*w1 + n2[1]*w2)/(w1 + w2);
 		// normal_sphere->points[shortest_dist_index].z = (n1[2]*w1 + n2[2]*w2)/(w1 + w2);
+		
 		features[shortest_dist_index].num_refpoints += features[features[shortest_dist_index].neighbor_index].num_refpoints;
 		features[shortest_dist_index].fitting_error = (features[shortest_dist_index].fitting_error + features[features[shortest_dist_index].neighbor_index].fitting_error)/2.0;
-		features[shortest_dist_index].weight = features[shortest_dist_index].num_refpoints/features[shortest_dist_index].fitting_error;
+		features[shortest_dist_index].ang_from_g_est = angle_between_vectors(merged_n, g_est);
+		features[shortest_dist_index].num_groups += features[features[shortest_dist_index].neighbor_index].num_groups;
+		
+		const std::vector<float> features_parameters = {1.0, 1.0, 10.0, 1.0}; 
+		features[shortest_dist_index].weight = 
+			features_parameters[0]*features[shortest_dist_index].num_refpoints
+			// *features_parameters[1]*(1/features[shortest_dist_index].fitting_error)
+			*features_parameters[2]*(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est))
+			*features_parameters[3]*features[shortest_dist_index].num_groups;
 
 		// num_members[shortest_dist_index] += num_members[pointIdxNKNSearch[shortest_dist_index]];
 		
-		std::cout << " erase " << features[shortest_dist_index].neighbor_index << std::endl;
-		normal_sphere->points.erase(normal_sphere->points.begin()+features[shortest_dist_index].neighbor_index);
-		features.erase(features.begin()+features[shortest_dist_index].neighbor_index);
-		for(int j=0;j<features.size();j++){
-			std::cout << j << " : features[j].neighbor_index = " << features[j].neighbor_index << std::endl;
-		}
+		// std::cout << "erase " << features[shortest_dist_index].neighbor_index << std::endl;
+		normal_sphere->points.erase(normal_sphere->points.begin() + features[shortest_dist_index].neighbor_index);
+		features.erase(features.begin() + features[shortest_dist_index].neighbor_index);
+		// for(int j=0;j<features.size();j++)	std::cout << j << " : features[j].neighbor_index = " << features[j].neighbor_index << std::endl;
 		// fitting_errors.erase(fitting_errors.begin()+pointIdxNKNSearch[shortest_dist_index]);
 		// num_members.erase(num_members.begin()+pointIdxNKNSearch[shortest_dist_index]);
+	}
+	for(size_t i=0;i<features.size();i++){
+		if(features[i].num_groups<2){
+			std::cout << ">> no merge, then erace " << i << std::endl;
+			normal_sphere->points.erase(normal_sphere->points.begin() + i);
+			features.erase(features.begin() + i);
+		}
 	}
 }
 
@@ -498,7 +582,7 @@ int main(int argc, char** argv)
 
 	// viewer.addPointCloud(cloud, "cloud");
 	// std::cout << "TEST" << std::endl;
-	ros::Rate loop_rate(0.1);
+	ros::Rate loop_rate(10);
 	while(ros::ok()){
 		viewer.spinOnce();
 		// viewer.removePointCloud("cloud");
@@ -526,7 +610,14 @@ int main(int argc, char** argv)
 			points_to_normals(normal_sphere, normals_before_clustering);
 			clustering(normals, features, normal_sphere);
 			points_to_normals(normal_sphere, normals_after_clustering);
-			estimate_g_vector(normal_sphere, g_vector);
+			if(estimate_g_vector(normal_sphere, g_vector)==false){
+				std::cout << "FALSE" << std::endl;
+				// exit(1);
+			}
+			// if(g_vector->points[0].normal_z>-0.6){
+			// 	std::cout << "WEIRED ESTIMATION" << std::endl;
+			// 	exit(1);
+			// }
 			
 			/*-----publish-----*/
 			sensor_msgs::PointCloud2 roscloud_out;
@@ -553,19 +644,25 @@ int main(int argc, char** argv)
 			
 			viewer.removePointCloud("g");
 			// viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(g_vector, g_vector, 1, 0.5, "g");
-			viewer.addPointCloudNormals<pcl::PointXYZINormal>(g_vector, 1, 0.5, "g");
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "g");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal>(g_vector, 1, 0.2, "g");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 1.0, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g");
 			
 			viewer.removePointCloud("normals_before_clustering");
-			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_before_clustering, 1, 0.5, "normals_before_clustering");
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 1.0, "normals_before_clustering");
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals_before_clustering");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_before_clustering, 1, 0.3, "normals_before_clustering");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 1.0, "normals_before_clustering");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, "normals_before_clustering");
 			
 			viewer.removePointCloud("normals_after_clustering");
-			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_after_clustering, 1, 0.5, "normals_after_clustering");
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 1.0, "normals_after_clustering");
-			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals_after_clustering");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_after_clustering, 1, 0.2, "normals_after_clustering");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "normals_after_clustering");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, "normals_after_clustering");
+
+			// if(g_vector->points[0].normal_z>-0.0){
+			// 	std::cout << "WEIRED ESTIMATION" << std::endl;
+			// 	while(1){}
+			// }
+
 		}
 		// viewer->spinOnce(100);
 		// boost::this_thread::sleep(boost::posix_time::microseconds(100000));
