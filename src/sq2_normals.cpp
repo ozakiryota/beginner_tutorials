@@ -29,6 +29,14 @@ struct	FEATURES{
 	int num_groups;
 };
 
+/*-----getParam-----*/
+float SEARCH_RADIUS;
+int RANDOM_STEP_MAX;
+float THRESHOLD_ANGLE_FROM_G;
+float THRESHOLD_SUM_SQUARE_ERROR;
+float MIN_DISTANCE_BETWEEN_NORMSLS;
+std::vector<float> PARAMETERS_FOR_FEATURES;
+
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
 	// std::cout << "cloud_callback" << std::endl;
@@ -535,6 +543,10 @@ int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "pc_normal");
 	ros::NodeHandle nh;
+	ros::NodeHandle local_nh("~");
+	
+	/*---getParam---*/
+	local_nh.getParam("SEARCH_RADIUS", SEARCH_RADIUS);
 
 	/*sub & pub*/
 	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
