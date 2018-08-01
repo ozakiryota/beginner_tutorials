@@ -36,7 +36,11 @@ int RANDOM_STEP_MAX;
 float THRESHOLD_ANGLE_FROM_G;
 float THRESHOLD_SUM_SQUARE_ERRORS;
 float MIN_DISTANCE_BETWEEN_NORMSLS;
-std::vector<float> PARAMETERS_FOR_FEATURES;
+// std::vector<float> PARAMETERS_FOR_FEATURES;
+float FACTOR_1;
+float FACTOR_2;
+float FACTOR_3;
+float FACTOR_4;
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
@@ -132,6 +136,7 @@ float angle_between_vectors(std::vector<float> v1, std::vector<float> v2)
 	}
 	v1_norm = sqrt(v1_norm);
 	v2_norm = sqrt(v2_norm);
+	// std::cout << "return angle" << std::endl;
 	return fabs(acosf(dot_product/(v1_norm*v2_norm)));
 }
 
@@ -166,11 +171,11 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 		searchpoint.y = cloud->points[i].y;
 		searchpoint.z = cloud->points[i].z;
 		// std::cout << "start finding kdtree" <<  std::endl;
-		if(searchpoint.z<0.3){
-			std::cout << ">> searchpoint.z<0.5, then skip" << std::endl;
-			continue;
-		}
-		std::vector<int> indices = kdtree_search(cloud, radius, searchpoint);
+		// if(searchpoint.z<0.3){
+		// 	std::cout << ">> searchpoint.z<0.5, then skip" << std::endl;
+		// 	continue;
+		// }
+		std::vector<int> indices = kdtree_search(cloud, searchpoint);
 		std::cout << "indices.size() = " << indices.size() << std::endl;
 		if(indices.size()<3){
 			std::cout << ">> indices.size()<3, then skip" << std::endl;
@@ -190,7 +195,8 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 		// std::cout << "fabs(tmp_ang_from_g_est) = " << fabs(tmp_ang_from_g_est) << std::endl;
 		// const float ang_threshold = 30.0/180.0*M_PI;
 		// std::cout << "ang_threshold = " << ang_threshold << std::endl;
-		iftmp_ang_from_g_est<THRESHOLD_ANGLE_FROM_G || tmp_ang_from_g_est>(M_PI-THRESHOLD_ANGLE_FROM_G){
+		std::cout << "THRESHOLD_ANGLE_FROM_G = " << THRESHOLD_ANGLE_FROM_G << std::endl;
+		if(tmp_ang_from_g_est<THRESHOLD_ANGLE_FROM_G/180.0*M_PI || tmp_ang_from_g_est>(M_PI-THRESHOLD_ANGLE_FROM_G/180.0*M_PI)){
 			std::cout << ">> tmp_ang_from_g_est is too small or large, then skip" << std::endl;
 			continue;
 		}
@@ -438,6 +444,7 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 			// std::cout << "   features[i].ang_from_g_est = " << features[i].ang_from_g_est << std::endl;
 			std::cout << "   1/fabs(M_PI/2.0 - features[i].ang_from_g_est) = " << 1/fabs(M_PI/2.0 - features[i].ang_from_g_est) << std::endl;
 			std::cout << "   features[i].num_groups = " << features[i].num_groups << std::endl;
+			std::cout << "   features[i].weight = " << features[i].weight << std::endl;
 			std::cout << "   pointIdxNKNSearch[1] = " << pointNKNSquaredDistance[1] << std::endl;
 
 			if(i==0){
@@ -501,11 +508,23 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 		//	*features_parameters[2]*(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est))
 		//	*features_parameters[3]*features[shortest_dist_index].num_groups;
 		
+		// features[shortest_dist_index].weight = 
+		// 	PARAMETERS_FOR_FEATURES[0]*features[shortest_dist_index].num_refpoints
+		// 	*PARAMETERS_FOR_FEATURES[1]*(1/features[shortest_dist_index].fitting_error)
+		// 	*PARAMETERS_FOR_FEATURES[2]*(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est))
+		// 	*PARAMETERS_FOR_FEATURES[3]*features[shortest_dist_index].num_groups;
+
 		features[shortest_dist_index].weight = 
-			PARAMETERS_FOR_FEATURES[0]*features[shortest_dist_index].num_refpoints
-			*PARAMETERS_FOR_FEATURES[1]*(1/features[shortest_dist_index].fitting_error)
-			*PARAMETERS_FOR_FEATURES[2]*(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est))
-			*PARAMETERS_FOR_FEATURES[3]*features[shortest_dist_index].num_groups;
+			FACTOR_1*features[shortest_dist_index].num_refpoints
+			+FACTOR_2*(1/features[shortest_dist_index].fitting_error)
+			+FACTOR_3*(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est))
+			+FACTOR_4*features[shortest_dist_index].num_groups;
+		
+		std::cout << "features[shortest_dist_index].num_refpoints = " << features[shortest_dist_index].num_refpoints << std::endl;
+		std::cout << "(1/features[shortest_dist_index].fitting_error) = " << (1/features[shortest_dist_index].fitting_error) << std::endl;
+		std::cout << "(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est)) = " << (1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est)) << std::endl;
+		std::cout << "features[shortest_dist_index].num_groups = " << features[shortest_dist_index].num_groups << std::endl;
+
 
 		// num_members[shortest_dist_index] += num_members[pointIdxNKNSearch[shortest_dist_index]];
 		
@@ -550,8 +569,8 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 	}
 }
 
-int main(int argc, char** argv)
-{
+	int main(int argc, char** argv)
+	{
 	ros::init(argc, argv, "pc_normal");
 	ros::NodeHandle nh;
 	ros::NodeHandle local_nh("~");
@@ -563,7 +582,11 @@ int main(int argc, char** argv)
 	local_nh.getParam("THRESHOLD_ANGLE_FROM_G", THRESHOLD_ANGLE_FROM_G);
 	local_nh.getParam("THRESHOLD_SUM_SQUARE_ERRORS", THRESHOLD_SUM_SQUARE_ERRORS);
 	local_nh.getParam("MIN_DISTANCE_BETWEEN_NORMSLS", MIN_DISTANCE_BETWEEN_NORMSLS);
-	local_nh.getParam("PARAMETERS_FOR_FEATURES", PARAMETERS_FOR_FEATURES);
+	// local_nh.getParam("PARAMETERS_FOR_FEATURES", PARAMETERS_FOR_FEATURES);
+	local_nh.getParam("FACTOR_1", FACTOR_1);
+	local_nh.getParam("FACTOR_2", FACTOR_2);
+	local_nh.getParam("FACTOR_3", FACTOR_3);
+	local_nh.getParam("FACTOR_4", FACTOR_4);
 
 	/*sub & pub*/
 	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
@@ -635,6 +658,7 @@ int main(int argc, char** argv)
 			std::vector<FEATURES> features;
 			// plane_fitting(normals, fitting_errors, num_refpoints);
 			plane_fitting(normals, features);
+			std::cout << "marker" << std::endl;
 			normals_to_points(normals, normal_sphere);
 			points_to_normals(normal_sphere, normals_before_clustering);
 			clustering(normals, features, normal_sphere);

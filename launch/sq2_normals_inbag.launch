@@ -13,10 +13,13 @@
 		<param name="LOOP_RATE" value="10.0"/>
 		<param name="SEARCH_RADIUS" value="0.5"/>
 		<param name="RANDOM_STEP_MAX" value="500"/>
-		<param name="THRESHOLD_ANGLE_FROM_G" value="30.0/180.0*M_PI"/>
+		<param name="THRESHOLD_ANGLE_FROM_G" value="30.0"/>
 		<param name="THRESHOLD_SUM_SQUARE_ERRORS" value="0.01"/>
 		<param name="MIN_DISTANCE_BETWEEN_NORMSLS" value="0.1"/>
-		<param name="PARAMETERS_FOR_FEATURES" value="{1.0, 1.0, 1.0, 1.0}"/>
+		<param name="FACTOR_1" value="1.0"/>
+		<param name="FACTOR_2" value="1.0"/>
+		<param name="FACTOR_3" value="1.0"/>
+		<param name="FACTOR_4" value="1.0"/>
 	</node>
 	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/2018-05-08-19-45-05.bag"/>
 		<!-- <param name="use_sim_time" value="true" /> -->
