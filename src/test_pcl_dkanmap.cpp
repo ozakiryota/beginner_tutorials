@@ -29,6 +29,18 @@ void print_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int n)
 	for(int i=0;i<n;i++)	std::cout << i+1 << ": " << cloud->points[i].x << "," << cloud->points[i].y << "," << cloud->points[i].z << std::endl;
 }
 
+void estimate_normal(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normal)
+{
+	std::cout << "ESTIMATE NORMSL" << std::endl;
+	pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+	ne.setInputCloud (cloud);
+	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+	ne.setSearchMethod(tree);
+	ne.setRadiusSearch(0.5);
+	ne.compute(*normal);
+	std::cout << "done" << std::endl;
+}
+
 std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float radius, pcl::PointXYZ searchpoint)
 {
 	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
@@ -128,26 +140,28 @@ void estimate_g_vector(pcl::PointCloud<pcl::Normal>::Ptr normal, pcl::PointCloud
 
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "test_flann");
+	ros::init(argc, argv, "test_pcl_dkanmap");
 	ros::NodeHandle nh;
 	
 	// const int num_points = 10000;
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::io::loadPCDFile ("/home/amsl/ros_catkin_ws/src/beginner_tutorials/map_0.pcd", *cloud);
 	int num_points = cloud->points.size();
+	std::cout << "num_points = " <<  num_points << std::endl;
 	// cloud->points.resize(num_points);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud (new pcl::PointCloud<pcl::PointXYZ>);
 	// planecloud->points.resize(num_points);
 	// randomize_cloud(cloud, num_points);
 	// print_cloud(cloud, num_points);
 	pcl::PointCloud<pcl::Normal>::Ptr normal (new pcl::PointCloud<pcl::Normal>);
-	// normal->points.resize(num_points);
+	normal->points.resize(num_points);
 	// estimate_normal(cloud, normal);
 
 	// Eigen::Vector4f plane_parameters;
 	std::vector<float> fitting_errors;
-	plane_fitting(cloud, normal, planecloud, fitting_errors);
-	
+	// plane_fitting(cloud, normal, planecloud, fitting_errors);
+	estimate_normal(cloud, normal);
+
 	pcl::PointCloud<pcl::PointXYZ>::Ptr g_point (new pcl::PointCloud<pcl::PointXYZ>);
 	g_point->points.resize(1);
 	pcl::PointCloud<pcl::Normal>::Ptr g_vector (new pcl::PointCloud<pcl::Normal>);

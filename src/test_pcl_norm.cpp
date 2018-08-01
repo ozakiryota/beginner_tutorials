@@ -45,7 +45,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "test_flann");
 	ros::NodeHandle nh;
 	
-	const int num_points = 1000;
+	const int num_points = 10000;
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	cloud->points.resize(num_points);

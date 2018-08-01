@@ -36,6 +36,7 @@ int RANDOM_STEP_MAX;
 float THRESHOLD_ANGLE_FROM_G;
 float THRESHOLD_SUM_SQUARE_ERRORS;
 float MIN_DISTANCE_BETWEEN_NORMSLS;
+float MIN_NUM_GROUPS;
 // std::vector<float> PARAMETERS_FOR_FEATURES;
 float FACTOR_1;
 float FACTOR_2;
@@ -195,7 +196,6 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 		// std::cout << "fabs(tmp_ang_from_g_est) = " << fabs(tmp_ang_from_g_est) << std::endl;
 		// const float ang_threshold = 30.0/180.0*M_PI;
 		// std::cout << "ang_threshold = " << ang_threshold << std::endl;
-		std::cout << "THRESHOLD_ANGLE_FROM_G = " << THRESHOLD_ANGLE_FROM_G << std::endl;
 		if(tmp_ang_from_g_est<THRESHOLD_ANGLE_FROM_G/180.0*M_PI || tmp_ang_from_g_est>(M_PI-THRESHOLD_ANGLE_FROM_G/180.0*M_PI)){
 			std::cout << ">> tmp_ang_from_g_est is too small or large, then skip" << std::endl;
 			continue;
@@ -242,7 +242,9 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 				indices.size(),
 				sum_square_error,
 				tmp_ang_from_g_est,
-				indices.size()/sum_square_error,
+				FACTOR_1*indices.size()
+				+ FACTOR_2*(1/sum_square_error)
+				+ FACTOR_3*(1/fabs(M_PI/2.0 - tmp_ang_from_g_est)),
 				i,
 				1});
 			// std::cout << "features[features.size()-1].num_refpoints = " << features[features.size()-1].num_refpoints << std::endl;
@@ -289,6 +291,10 @@ bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::P
 	g_vector->points[0].normal_y = -g_parameters[1];
 	g_vector->points[0].normal_z = -g_parameters[2];
 	std::cout << "g_vector->points[0] = " << g_vector->points[0] << std::endl;
+	if(g_vector->points[0].normal_z>0.0){
+		std::cout << "would be wrong" << std::endl;
+		exit(1);
+	}
 	return true;
 }
 
@@ -516,9 +522,9 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 
 		features[shortest_dist_index].weight = 
 			FACTOR_1*features[shortest_dist_index].num_refpoints
-			+FACTOR_2*(1/features[shortest_dist_index].fitting_error)
-			+FACTOR_3*(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est))
-			+FACTOR_4*features[shortest_dist_index].num_groups;
+			+ FACTOR_2*(1/features[shortest_dist_index].fitting_error)
+			+ FACTOR_3*(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est))
+			+ FACTOR_4*features[shortest_dist_index].num_groups;
 		
 		std::cout << "features[shortest_dist_index].num_refpoints = " << features[shortest_dist_index].num_refpoints << std::endl;
 		std::cout << "(1/features[shortest_dist_index].fitting_error) = " << (1/features[shortest_dist_index].fitting_error) << std::endl;
@@ -536,8 +542,8 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 		// num_members.erase(num_members.begin()+pointIdxNKNSearch[shortest_dist_index]);
 	}
 	for(size_t i=0;i<features.size();i++){
-		if(features[i].num_groups<2){
-			std::cout << ">> no merge, then erace " << i << std::endl;
+		if(features[i].num_groups<MIN_NUM_GROUPS){
+			std::cout << ">> not enough number of merge, then erace " << i << std::endl;
 			normal_sphere->points.erase(normal_sphere->points.begin() + i);
 			features.erase(features.begin() + i);
 		}
@@ -582,6 +588,7 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 	local_nh.getParam("THRESHOLD_ANGLE_FROM_G", THRESHOLD_ANGLE_FROM_G);
 	local_nh.getParam("THRESHOLD_SUM_SQUARE_ERRORS", THRESHOLD_SUM_SQUARE_ERRORS);
 	local_nh.getParam("MIN_DISTANCE_BETWEEN_NORMSLS", MIN_DISTANCE_BETWEEN_NORMSLS);
+	local_nh.getParam("MIN_NUM_GROUPS", MIN_NUM_GROUPS);
 	// local_nh.getParam("PARAMETERS_FOR_FEATURES", PARAMETERS_FOR_FEATURES);
 	local_nh.getParam("FACTOR_1", FACTOR_1);
 	local_nh.getParam("FACTOR_2", FACTOR_2);
@@ -658,7 +665,6 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 			std::vector<FEATURES> features;
 			// plane_fitting(normals, fitting_errors, num_refpoints);
 			plane_fitting(normals, features);
-			std::cout << "marker" << std::endl;
 			normals_to_points(normals, normal_sphere);
 			points_to_normals(normal_sphere, normals_before_clustering);
 			clustering(normals, features, normal_sphere);
