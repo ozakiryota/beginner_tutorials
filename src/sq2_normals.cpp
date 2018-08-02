@@ -33,6 +33,7 @@ struct	FEATURES{
 float LOOP_RATE;
 float SEARCH_RADIUS;
 int RANDOM_STEP_MAX;
+int THRESHOLD_REF_POINTS;
 float THRESHOLD_ANGLE_FROM_G;
 float THRESHOLD_SUM_SQUARE_ERRORS;
 float MIN_DISTANCE_BETWEEN_NORMSLS;
@@ -178,8 +179,8 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 		// }
 		std::vector<int> indices = kdtree_search(cloud, searchpoint);
 		std::cout << "indices.size() = " << indices.size() << std::endl;
-		if(indices.size()<3){
-			std::cout << ">> indices.size()<3, then skip" << std::endl;
+		if(indices.size()<THRESHOLD_REF_POINTS){
+			std::cout << ">> indices.size()< "<< THRESHOLD_REF_POINTS << ", then skip" << std::endl;
 			continue;
 		}
 		Eigen::Vector4f plane_parameters;
@@ -231,7 +232,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 			tmp_normal.x = cloud->points[i].x;
 			tmp_normal.y = cloud->points[i].y;
 			tmp_normal.z = cloud->points[i].z;
-			flipNormalTowardsViewpoint (tmp_normal, 0.0, 0.0, 0.1, plane_parameters);
+			flipNormalTowardsViewpoint (tmp_normal, 0.0, 0.0, 1.0, plane_parameters);
 			tmp_normal.normal_x = plane_parameters[0];
 			tmp_normal.normal_y = plane_parameters[1];
 			tmp_normal.normal_z = plane_parameters[2];
@@ -272,6 +273,7 @@ bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::P
 	//	normal_sphere.points[i].y = main_normals->points[i].normal_y;
 	//	normal_sphere.points[i].z = main_normals->points[i].normal_z;
 	// }
+
 	g_vector->points[0].x = 0;
 	g_vector->points[0].y = 0;
 	g_vector->points[0].z = 1.0;
@@ -280,6 +282,7 @@ bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::P
 		g_vector->points[0].normal_y = normal_sphere->points[0].z*normal_sphere->points[1].x - normal_sphere->points[0].x*normal_sphere->points[1].z;
 		g_vector->points[0].normal_z = normal_sphere->points[0].x*normal_sphere->points[1].y - normal_sphere->points[0].y*normal_sphere->points[1].x;
 		std::cout << "g_vector->points[0] = " << g_vector->points[0] << std::endl;
+		flipNormalTowardsViewpoint(g_vector->points[0], 0.0, 0.0, 0.5, g_vector->points[0].normal_x, g_vector->points[0].normal_y, g_vector->points[0].normal_z);
 		return true;
 	}
 	Eigen::Vector4f g_parameters;
@@ -287,13 +290,15 @@ bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::P
 	pcl::computePointNormal(*normal_sphere, g_parameters, curvature);
 	// pcl::computePointNormal(*main_normals, g_parameters, curvature);
 	// std::cout << "gravity" << std::endl << g_parameters << std::endl;
-	g_vector->points[0].normal_x = -g_parameters[0];
-	g_vector->points[0].normal_y = -g_parameters[1];
-	g_vector->points[0].normal_z = -g_parameters[2];
+	flipNormalTowardsViewpoint(g_vector->points[0], 0.0, 0.0, 0.5, g_parameters);
+	g_vector->points[0].normal_x = g_parameters[0];
+	g_vector->points[0].normal_y = g_parameters[1];
+	g_vector->points[0].normal_z = g_parameters[2];
 	std::cout << "g_vector->points[0] = " << g_vector->points[0] << std::endl;
+	std::cout << "g_parameters.size() = " << g_parameters.size() << std::endl;
 	if(g_vector->points[0].normal_z>0.0){
 		std::cout << "would be wrong" << std::endl;
-		exit(1);
+		// exit(1);
 	}
 	return true;
 }
@@ -585,6 +590,7 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 	local_nh.getParam("LOOP_RATE", LOOP_RATE);
 	local_nh.getParam("SEARCH_RADIUS", SEARCH_RADIUS);
 	local_nh.getParam("RANDOM_STEP_MAX", RANDOM_STEP_MAX);
+	local_nh.getParam("THRESHOLD_REF_POINTS", THRESHOLD_REF_POINTS);
 	local_nh.getParam("THRESHOLD_ANGLE_FROM_G", THRESHOLD_ANGLE_FROM_G);
 	local_nh.getParam("THRESHOLD_SUM_SQUARE_ERRORS", THRESHOLD_SUM_SQUARE_ERRORS);
 	local_nh.getParam("MIN_DISTANCE_BETWEEN_NORMSLS", MIN_DISTANCE_BETWEEN_NORMSLS);
