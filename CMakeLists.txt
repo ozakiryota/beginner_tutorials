@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
+  tf
 )
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
@@ -239,3 +240,5 @@ add_executable(test_pcl_bag src/test_pcl_bag.cpp)
 target_link_libraries(test_pcl_bag ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(sq2_normals src/sq2_normals.cpp)
 target_link_libraries(sq2_normals ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(imu_tf src/imu_tf.cpp)
+target_link_libraries(imu_tf ${catkin_LIBRARIES})
