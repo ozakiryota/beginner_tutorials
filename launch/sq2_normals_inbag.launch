@@ -24,6 +24,11 @@
 		<param name="FACTOR_4" value="1.0"/>	<!-- num_groups -->
 	</node>
 	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/2018-05-08-19-45-05.bag"/>
+
+	<node pkg="beginner_tutorials" name="imu_tf" type="imu_tf">
+		<param name="LOOP_RATE" value="100.0"/>
+	</node>
+
 	<node pkg="rviz" type="rviz" name="rviz"/>
 
 	<include file="$(find beginner_tutorials)/launch/lcl.launch"/>

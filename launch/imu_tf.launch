@@ -1,7 +1,9 @@
 <launch>
 	<param name="use_sim_time" value="true" />
 
-	<node pkg="beginner_tutorials" name="imu_tf" type="imu_tf" output="screen"/>
+	<node pkg="beginner_tutorials" name="imu_tf" type="imu_tf" output="screen">
+		<param name="LOOP_RATE" value="400.0"/>
+	</node>
 	
 	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ros_catkin_ws/bagfiles/xsens_mti30_aa-oq-wr1.bag"/>
 
