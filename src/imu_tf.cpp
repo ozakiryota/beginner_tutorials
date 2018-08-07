@@ -75,32 +75,32 @@ void callback_imu1(const sensor_msgs::ImuConstPtr& msg)
 	// if(first_callback)	q = tf::Quaternion(imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w);
 	if(first_callback)	q = tf::Quaternion(0.0, 0.0, 0.0, 1.0);
 	else{	
-	double roll;
-	double pitch;
-	double yaw;
-	tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
-	Eigen::MatrixXf R(3, 1);
-	R <<	roll,
-	  		pitch,
-			yaw;	
-	double roll_ = -imu.angular_velocity.x*dt;
-	double pitch_ = -imu.angular_velocity.y*dt;
-	double yaw_ = -imu.angular_velocity.z*dt;
-	Eigen::MatrixXf U(3, 1);
-	U <<	roll_,
-	  		pitch_,
-			yaw_;
-	Eigen::MatrixXf A(3, 3);
-	A <<	1,	0,	0,
-	  		0,	1,	0,
-			0,	0,	1;
-	Eigen::MatrixXf B(3, 3);
-	B <<	1,	sin(roll)*tan(pitch),	cos(roll)*tan(pitch),
-	  		0,	cos(roll),	-sin(pitch),
-			0,	sin(roll)/cos(pitch),	cos(roll)/cos(pitch);
+		double roll;
+		double pitch;
+		double yaw;
+		tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
+		Eigen::MatrixXf R(3, 1);
+		R <<	roll,
+		  		pitch,
+				yaw;	
+		double roll_ = -imu.angular_velocity.x*dt;
+		double pitch_ = -imu.angular_velocity.y*dt;
+		double yaw_ = -imu.angular_velocity.z*dt;
+		Eigen::MatrixXf U(3, 1);
+		U <<	roll_,
+	  			pitch_,
+				yaw_;
+		Eigen::MatrixXf A(3, 3);
+		A <<	1,	0,	0,
+	  			0,	1,	0,
+				0,	0,	1;
+		Eigen::MatrixXf B(3, 3);
+		B <<	1,	sin(roll)*tan(pitch),	cos(roll)*tan(pitch),
+	  			0,	cos(roll),	-sin(pitch),
+				0,	sin(roll)/cos(pitch),	cos(roll)/cos(pitch);
 
-	R = A*R + B*U;
-	q = tf::createQuaternionFromRPY(R(0, 0), R(1, 0), R(2, 0));
+		R = A*R + B*U;
+		q = tf::createQuaternionFromRPY(R(0, 0), R(1, 0), R(2, 0));
 	}
 
 	const double g = 9.80665;
@@ -130,11 +130,23 @@ int main(int argc, char** argv)
 	local_nh.getParam("TARGET_FRAME", TARGET_FRAME);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
 	// ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu1);
+	ros::Publisher pub_pose = nh.advertise<geometry_msgs::PoseStamped>("/pose_test", 1);
 
 	current_time = ros::Time::now();
 	last_time = ros::Time::now();
 
+	geometry_msgs::PoseStamped pose;
+	pose.header.frame_id = "/imu";
+	pose.pose.position.x = 0.0;
+	pose.pose.position.y = 0.0;
+	pose.pose.position.z = 0.0;
+
+	ros::Rate loop_rate(10);
 	while(ros::ok()){
+		quaternionTFToMsg(q, pose.pose.orientation);
+		pose.header.stamp = ros::Time::now();
+		pub_pose.publish(pose);
+
 		ros::spinOnce();
 	}
 }

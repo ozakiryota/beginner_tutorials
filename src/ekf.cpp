@@ -14,25 +14,97 @@
 #include <Eigen/LU>
 #include <sensor_msgs/Imu.h>
 #include <geometry_msgs/Quaternion.h>
- 
+#include <tf/tf.h>
+
 sensor_msgs::Imu imu;
-tf::Quaternion q_imu(0.0, 0.0, 0.0, 1.0);
+ros::Time current_time;
+ros::Time last_time;
+bool first_callback = true;
+
+Eigen::MatrixXf X(3, 1);
+// Eigen::MatrixXf U(3, 1);
+Eigen::MatrixXf P(3, 3);
+// Eigen::MatrixXf jF(3, 3);
+// Eigen::MatrixXf A(3, 3);
+// Eigen::MatrixXf B(3, 3);
+
+geometry_msgs::Quaternion q;
+
 const double LOOP_RATE = 100.1;
 
-void imu_callback(const sensor_msgs::ImuConstPtr& msg)
+void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 {
-	std::cout << "imu_callback" << std::endl;
+	// std::cout << "imu_callback" << std::endl;
 	imu = *msg;
 
-	double roll = -imu.angular_velocity.x*(1/LOOP_RATE);
-	double pitch = -imu.angular_velocity.y*(1/LOOP_RATE);
-	double yaw = -imu.angular_velocity.z*(1/LOOP_RATE);
-	q_imu = tf::createQuaternionFromRPY(roll, pitch, yaw)*q_imu;
+	current_time = ros::Time::now();
+	double dt = (current_time - last_time).toSec();
+	last_time = current_time;
+
+	if(!first_callback){
+		Eigen::MatrixXf U(3, 1);
+		U <<	-imu.angular_velocity.x*dt,
+		  		-imu.angular_velocity.y*dt,
+				-imu.angular_velocity.z*dt;
+
+		Eigen::MatrixXf A(3, 3);
+		A <<	1,  0,  0,
+				0,  1,  0,
+				0,  0,  1;
+
+		Eigen::MatrixXf B(3, 3);
+		B <<    1,	sin(X(0, 0))*tan(X(1, 0)),	cos(X(0, 0))*tan(X(1, 0)),
+	    	0,	cos(X(0, 0)),	-sin(X(1, 0)),
+			0,	sin(X(0, 0))/cos(X(1, 0)),	cos(X(0, 0))/cos(X(1, 0));
+
+		Eigen::MatrixXf jF(3, 3);
+		jF <<	U(1, 0)*tan(X(1, 0))*cos(X(0, 0)) - U(2, 0)*tan(X(1, 0))*sin(X(0, 0)),
+					U(1, 0)*sin(X(0, 0))/( cos(X(1, 0))*cos(X(1, 0)) ) - U(2, 0)*cos(X(0, 0))/( cos(X(1, 0))*cos(X(1, 0)) ),
+						0,
+				-U(1, 0)*sin(X(0, 0)) - U(2, 0)*cos(X(0, 0)),
+					0,
+						0,
+				U(1, 0)/cos(X(1, 0))*cos(X(0, 0)) - U(2, 0)/cos(X(1, 0))*sin(X(0, 0)),
+					U(1, 0)*sin(X(0, 0 ))*sin(X(1, 0))/( cos(X(1, 0))*cos(X(1, 0)) ) + U(2, 0)*cos(X(0, 0))*sin(X(1, 0))/( cos(X(1, 0))*cos(X(1, 0)) ),
+						0;
+		
+		X = A*X + B*U;
+		P = jF*P*jF.transpose();
+	}
 }
 
-void observation_callback(const geometry_msgs::PoseStampedConstPtr& msg)
+void callback_observation(const geometry_msgs::QuaternionConstPtr& msg)
 {
+	tf::Quaternion q(msg->x, msg->y, msg->z, msg->w);
+	double roll;
+	double pitch;
+	double yaw;
+	tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
 
+	Eigen::MatrixXf H(3, 3);
+	H <<	1,  0,  0,
+			0,  1,  0;  
+			0,  0,  1;
+
+	Eigen::MatrixXf Z(3, 1);
+	Z <<	roll,
+			pitch,
+			yaw;
+	
+	Eigen::MatrixXf I;
+	I <<	1,  0,  0,
+			0,  1;  0,
+			0,  0,  1;
+
+	Eigen::MatrixXf Y(3, 1);
+	Eigen::MatrixXf S(3, 3);
+	Eigen::MatrixXf K(3, 3);
+	
+	Y = Z - H*X;
+	S = H*P*H.transpose();
+	K = P*H.transpose()*S.inverse();
+	X = X + (K*Y);
+	P = (I - K*H)*P;
 }
 
 void prediction0(Eigen::MatrixXf& X, Eigen::MatrixXf& P, float dt)
@@ -104,9 +176,22 @@ int main(int argc, char**argv)
 	ros::init(argc, argv, "ekf");
 	ros::NodeHandle nh;
 
+	current_time = ros::Time::now();
+	last_time = ros::Time::now();
+
+	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
+	ros::Subscriber sub_obs = nh.subscribe("/pose_from_normals", 10, callback_observation);
+
 	Eigen::MatrixXf X = Eigen::MatrixXf::Zero(3, 1);
 	Eigen::MatrixXf P(3, 3);
 	P <<	1000,	0,	0,
 	  		0,	 1000,	0,
 			0,	0,	1000;
+	X <<	0.0,
+	  		0.0,
+			0.0;
+
+	while(ros::ok()){
+		ros::spinOnce();
+	}
 }

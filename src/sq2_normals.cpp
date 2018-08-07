@@ -278,9 +278,19 @@ bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::P
 	g_vector->points[0].y = 0;
 	g_vector->points[0].z = 1.0;
 	if(normal_sphere->points.size()==2){
-		g_vector->points[0].normal_x = normal_sphere->points[0].y*normal_sphere->points[1].z - normal_sphere->points[0].z*normal_sphere->points[1].y;
-		g_vector->points[0].normal_y = normal_sphere->points[0].z*normal_sphere->points[1].x - normal_sphere->points[0].x*normal_sphere->points[1].z;
-		g_vector->points[0].normal_z = normal_sphere->points[0].x*normal_sphere->points[1].y - normal_sphere->points[0].y*normal_sphere->points[1].x;
+		float g_x = normal_sphere->points[0].y*normal_sphere->points[1].z - normal_sphere->points[0].z*normal_sphere->points[1].y;
+		float g_y = normal_sphere->points[0].z*normal_sphere->points[1].x - normal_sphere->points[0].x*normal_sphere->points[1].z;
+		float g_z = normal_sphere->points[0].x*normal_sphere->points[1].y - normal_sphere->points[0].y*normal_sphere->points[1].x;
+
+		float norm = sqrt(g_x*g_x + g_y*g_y + g_z*g_z);
+		
+		g_vector->points[0].normal_x = g_x/norm;
+		g_vector->points[0].normal_y = g_y/norm;
+		g_vector->points[0].normal_z = g_z/norm;
+
+		// g_vector->points[0].normal_x = normal_sphere->points[0].y*normal_sphere->points[1].z - normal_sphere->points[0].z*normal_sphere->points[1].y;
+		// g_vector->points[0].normal_y = normal_sphere->points[0].z*normal_sphere->points[1].x - normal_sphere->points[0].x*normal_sphere->points[1].z;
+		// g_vector->points[0].normal_z = normal_sphere->points[0].x*normal_sphere->points[1].y - normal_sphere->points[0].y*normal_sphere->points[1].x;
 		std::cout << "g_vector->points[0] = " << g_vector->points[0] << std::endl;
 		flipNormalTowardsViewpoint(g_vector->points[0], 0.0, 0.0, 0.5, g_vector->points[0].normal_x, g_vector->points[0].normal_y, g_vector->points[0].normal_z);
 		return true;
@@ -675,7 +685,8 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 			points_to_normals(normal_sphere, normals_before_clustering);
 			clustering(normals, features, normal_sphere);
 			points_to_normals(normal_sphere, normals_after_clustering);
-			if(estimate_g_vector(normal_sphere, g_vector)==false){
+			bool success_estimating = estimate_g_vector(normal_sphere, g_vector);
+			if(success_estimating==false){
 				std::cout << "FALSE" << std::endl;
 				// exit(1);
 			}
@@ -696,7 +707,8 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 			rosnormals_out.header.frame_id = "/centerlaser";
 			// rosnormals_out.header.stamp = tm;
 			normals_pub.publish(rosnormals_out);
-
+			
+			if(success_estimating==true)	std::cout << "success" << std::endl;
 
 			/*-----pcl viewer-----*/
 			viewer.removePointCloud("cloud");
