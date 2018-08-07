@@ -615,6 +615,7 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
+	ros::Publisher g_pub = nh.advertise<sensor_msgs::PointCloud2>("/g_from_normals",1);
 
 	// const int num_points = 10000;
 	// pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
@@ -708,7 +709,13 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 			// rosnormals_out.header.stamp = tm;
 			normals_pub.publish(rosnormals_out);
 			
-			if(success_estimating==true)	std::cout << "success" << std::endl;
+			if(success_estimating==true){
+				std::cout << "success" << std::endl;
+				sensor_msgs::PointCloud2 g_out;
+				pcl::toROSMsg(*g_vector, g_out);
+				g_out.header.frame_id = "/centerlaser";
+				g_pub.publish(g_out);
+			}
 
 			/*-----pcl viewer-----*/
 			viewer.removePointCloud("cloud");
