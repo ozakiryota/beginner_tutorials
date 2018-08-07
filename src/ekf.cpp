@@ -102,7 +102,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	}
 }
 
-void callback_observation(const geometry_msgs::QuaternionConstPtr& msg)
+void callback_observation0(const geometry_msgs::QuaternionConstPtr& msg)
 {
 	tf::Quaternion q(msg->x, msg->y, msg->z, msg->w);
 	double roll;
@@ -133,6 +133,33 @@ void callback_observation(const geometry_msgs::QuaternionConstPtr& msg)
 	S = H*P*H.transpose();
 	K = P*H.transpose()*S.inverse();
 	X = X + (K*Y);
+	P = (I - K*H)*P;
+}
+
+void callback_observation(const sensor_msgs::PointCloud2ConstPtr& msg)
+{
+	const float g = 9.80665;
+	Eigen::MatrixXf Z(2, 1);
+	Z <<	atan2(msg->points[0].normal_y*g, msg->points[0].normal_z*g),
+			atan2(-msg->points[0].normal_x*g, sqrt(msg->points[0].normal_y*g*msg->points[0].normal_y*g + msg->points[0].normal_z*g*msg->points[0].normal_z*g));
+	Eigen::MatrixXf H(2, 3);
+	H <<	1,	0,	0,
+			0,	1,	0;
+	Eigen::MatrixXf jH(2, 1);
+	jH <<	1,	0,	0,
+			0,	1,	0;
+	Eigen::MatrixXf I(3, 3);
+	I <<	1,	0,	0,
+			0,	1,	0,
+			0,	0,	1;
+	Eigen::MatrixXf Y(2, 1);
+	Eigen::MatrixXf S(2, 2);
+	Eigen::MatrixXf K(3, 2);
+	
+	Y = Z - H*X;
+	S = jH*P*jH.transpose();
+	K = P*H.transpose()*S.inverse();
+	X = X + K*Y;
 	P = (I - K*H)*P;
 }
 
@@ -209,7 +236,7 @@ int main(int argc, char**argv)
 	last_time = ros::Time::now();
 
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
-	ros::Subscriber sub_obs = nh.subscribe("/pose_from_normals", 10, callback_observation);
+	ros::Subscriber sub_obs = nh.subscribe("/g_from_normals", 10, callback_observation);
 
 	Eigen::MatrixXf X = Eigen::MatrixXf::Zero(3, 1);
 	Eigen::MatrixXf P(3, 3);
