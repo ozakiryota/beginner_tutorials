@@ -32,6 +32,35 @@ geometry_msgs::Quaternion q;
 
 const double LOOP_RATE = 100.1;
 
+void strapdown(void)
+{
+	// float roll = atan2(imu.linear_acceleration.y, imu.linear_acceleration.z);
+	// float pitch = atan2(-imu.linear_acceleration.x, sqrt(imu.linear_acceleration.y*imu.linear_acceleration.y + imu.linear_acceleration.z*imu.linear_acceleration.z));
+	
+	Eigen::MatrixXf Z(2, 1);
+	Z <<	atan2(imu.linear_acceleration.y, imu.linear_acceleration.z),
+			atan2(-imu.linear_acceleration.x, sqrt(imu.linear_acceleration.y*imu.linear_acceleration.y + imu.linear_acceleration.z*imu.linear_acceleration.z));
+	Eigen::MatrixXf H(2, 3);
+	H <<	1,	0,	0,
+			0,	1,	0;
+	Eigen::MatrixXf jH(2, 1);
+	jH <<	1,	0,	0,
+			0,	1,	0;
+	Eigen::MatrixXf I(3, 3);
+	I <<	1,	0,	0,
+			0,	1,	0,
+			0,	0,	1;
+	Eigen::MatrixXf Y(2, 1);
+	Eigen::MatrixXf S(2, 2);
+	Eigen::MatrixXf K(3, 2);
+	
+	Y = Z - H*X;
+	S = jH*P*jH.transpose();
+	K = P*H.transpose()*S.inverse();
+	X = X + K*Y;
+	P = (I - K*H)*P;
+}
+
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 {
 	// std::cout << "imu_callback" << std::endl;
