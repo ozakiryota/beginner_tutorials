@@ -658,7 +658,7 @@ int main(int argc, char** argv)
 
 	// viewer.addPointCloud(cloud, "cloud");
 	// std::cout << "TEST" << std::endl;
-	ros::Rate loop_rate(10);
+	ros::Rate loop_rate(LOOP_RATE);
 	while(ros::ok()){
 		viewer.spinOnce();
 		// viewer.removePointCloud("cloud");
