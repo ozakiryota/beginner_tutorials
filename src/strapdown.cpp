@@ -202,9 +202,9 @@ int main(int argc, char**argv)
 		ros::spinOnce();
 	}
 	
-	// ros::Rate loop_rate(10);
-	// while(ros::ok()){
+	ros::Rate loop_rate(10);
+	while(ros::ok()){
 		pub_inipose.publish(ini_pose);
-	//	loop_rate.sleep();
-	// }
+		loop_rate.sleep();
+	}
 }
