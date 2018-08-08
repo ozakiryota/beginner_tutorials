@@ -590,8 +590,8 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 	}
 }
 
-	int main(int argc, char** argv)
-	{
+int main(int argc, char** argv)
+{
 	ros::init(argc, argv, "pc_normal");
 	ros::NodeHandle nh;
 	ros::NodeHandle local_nh("~");
