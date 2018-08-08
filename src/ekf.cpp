@@ -56,7 +56,7 @@ void strapdown(void)
 	Eigen::MatrixXf H(2, 3);
 	H <<	1,	0,	0,
 			0,	1,	0;
-	Eigen::MatrixXf jH(2, 1);
+	Eigen::MatrixXf jH(2, 3);
 	jH <<	1,	0,	0,
 			0,	1,	0;
 	Eigen::MatrixXf I(3, 3);
