@@ -36,6 +36,9 @@ void strapdown(void)
 {
 	// float roll = atan2(imu.linear_acceleration.y, imu.linear_acceleration.z);
 	// float pitch = atan2(-imu.linear_acceleration.x, sqrt(imu.linear_acceleration.y*imu.linear_acceleration.y + imu.linear_acceleration.z*imu.linear_acceleration.z));
+	float roll, pitch, yaw;
+	tf::Quaternion tmp_q(imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w);
+	tf::Matrix3x3(tmp_q).getRPY(roll, pitch, yaw);
 	
 	Eigen::MatrixXf Z(2, 1);
 	Z <<	atan2(imu.linear_acceleration.y, imu.linear_acceleration.z),
@@ -97,6 +100,8 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 					U(1, 0)*sin(X(0, 0 ))*sin(X(1, 0))/( cos(X(1, 0))*cos(X(1, 0)) ) + U(2, 0)*cos(X(0, 0))*sin(X(1, 0))/( cos(X(1, 0))*cos(X(1, 0)) ),
 						0;
 		
+		Eigen::MatrixXf Q(3, 3);
+		
 		X = A*X + B*U;
 		P = jF*P*jF.transpose();
 	}
@@ -124,6 +129,8 @@ void callback_observation0(const geometry_msgs::QuaternionConstPtr& msg)
 	I <<	1,  0,  0,
 			0,  1;  0,
 			0,  0,  1;
+	
+	Eigen::MatrixXf R(3, 3);
 
 	Eigen::MatrixXf Y(3, 1);
 	Eigen::MatrixXf S(3, 3);
@@ -152,6 +159,8 @@ void callback_observation(const sensor_msgs::PointCloud2ConstPtr& msg)
 	I <<	1,	0,	0,
 			0,	1,	0,
 			0,	0,	1;
+	Eigen::MatrixXf R(3, 3);
+	
 	Eigen::MatrixXf Y(2, 1);
 	Eigen::MatrixXf S(2, 2);
 	Eigen::MatrixXf K(3, 2);
