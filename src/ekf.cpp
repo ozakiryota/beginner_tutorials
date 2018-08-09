@@ -13,19 +13,22 @@
 #include <Eigen/Core>
 #include <Eigen/LU>
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <geometry_msgs/Quaternion.h>
 #include <tf/tf.h>
 
 struct IMUDATA{
-	float wx;
-	float wy;
-	float wz;
-	float ax;
-	float ay;
-	float az;
+	double wx;
+	double wy;
+	double wz;
+	double ax;
+	double ay;
+	double az;
 };
 
 std::vector<IMUDATA> record;
+IMUDATA ave;
 sensor_msgs::Imu imu;
 ros::Time current_time;
 ros::Time last_time;
@@ -46,7 +49,7 @@ void strapdown(void)
 {
 	// float roll = atan2(imu.linear_acceleration.y, imu.linear_acceleration.z);
 	// float pitch = atan2(-imu.linear_acceleration.x, sqrt(imu.linear_acceleration.y*imu.linear_acceleration.y + imu.linear_acceleration.z*imu.linear_acceleration.z));
-	float roll, pitch, yaw;
+	double roll, pitch, yaw;
 	tf::Quaternion tmp_q(imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w);
 	tf::Matrix3x3(tmp_q).getRPY(roll, pitch, yaw);
 	
@@ -74,7 +77,7 @@ void strapdown(void)
 	P = (I - K*H)*P;
 }
 
-bool judge_stopping
+bool judge_stopping(void)
 {
 	const float threshold = 0.001;
 	if(fabs(record[record.size()-1].wx - ave.wx)>threshold)	return false;
@@ -92,7 +95,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	// std::cout << "imu_callback" << std::endl;
 	imu = *msg;
 
-	IMUDATA ave = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+	ave = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 	for(size_t i=0;i<record.size();i++){
 		ave.wx += record[i].wx/(float)record.size();
 		ave.wy += record[i].wy/(float)record.size();
@@ -114,7 +117,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	}
 		
 	const size_t num_record = 100;
-	if(record.size()>num_record)	record.erace(record.begin());
+	if(record.size()>num_record)	record.erase(record.begin());
 
 
 	current_time = ros::Time::now();
@@ -195,10 +198,13 @@ void callback_observation0(const geometry_msgs::QuaternionConstPtr& msg)
 
 void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
+	pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointXYZINormal>);
+	pcl::fromROSMsg(*msg, *g_vector);
+
 	const float g = 9.80665;
 	Eigen::MatrixXf Z(2, 1);
-	Z <<	atan2(msg->points[0].normal_y*g, msg->points[0].normal_z*g),
-			atan2(-msg->points[0].normal_x*g, sqrt(msg->points[0].normal_y*g*msg->points[0].normal_y*g + msg->points[0].normal_z*g*msg->points[0].normal_z*g));
+	Z <<	atan2(g_vector->points[0].normal_y*g, g_vector->points[0].normal_z*g),
+			atan2(-g_vector->points[0].normal_x*g, sqrt(g_vector->points[0].normal_y*g*g_vector->points[0].normal_y*g + g_vector->points[0].normal_z*g*g_vector->points[0].normal_z*g));
 	Eigen::MatrixXf H(2, 3);
 	H <<	1,	0,	0,
 			0,	1,	0;
@@ -222,9 +228,9 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 	P = (I - K*H)*P;
 }
 
-void callback_observation_slam(const geometry::QuoternionConstPtr& msg)
+void callback_observation_slam(const geometry_msgs::QuaternionConstPtr& msg)
 {
-	float roll, pitch, yaw;
+	double roll, pitch, yaw;
 	tf::Quaternion tmp_q(imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w);
 	tf::Matrix3x3(tmp_q).getRPY(roll, pitch, yaw);
 	
