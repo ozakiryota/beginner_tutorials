@@ -258,7 +258,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 
 int main(int argc, char**argv)
 {
-	ros::init(argc, argv, "imu_alignment.cpp");
+	ros::init(argc, argv, "imu_alignment");
 	ros::NodeHandle nh;
 
 	current_time = ros::Time::now();
