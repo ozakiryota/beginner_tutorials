@@ -14,6 +14,7 @@ struct IMUDATA{
 	double ax;
 	double ay;
 	double az;
+	double yaw;
 };
 
 geometry_msgs::Quaternion ini_pose;
