@@ -213,7 +213,7 @@ int main(int argc, char** argv)
 	ros::NodeHandle local_nh("~");
 	local_nh.getParam("PARENT_FRAME", PARENT_FRAME);
 	
-	ros::Subscriber sub_inipose = nh.subscribe("/ini_pose", 10, callback_inipose);
+	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 10, callback_inipose);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
 	ros::Publisher pub_odom = nh.advertise<nav_msgs::Odometry>("/imu_odom", 1);
 
