@@ -82,15 +82,15 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		// 		imu.linear_acceleration.z - bias.az;
 
 		// Eigen::MatrixXf R_(3, 3);
-		// R_ <<	cos(pitch)*cos(roll),
-		//   			sin(yaw)*sin(pitch)*cos(roll) - cos(yaw)*sin(roll),
-		// 				sin(yaw)*sin(roll) + cos(yaw)*sin(pitch)*cos(roll),
-		// 		cos(pitch)*sin(roll),
-		//   			sin(yaw)*sin(pitch)*sin(roll) + cos(yaw)*cos(roll),
-		// 				-sin(yaw)*sin(roll) + cos(yaw)*sin(pitch)*sin(roll),
-		// 		-sin(pitch),
-		// 			sin(yaw)*cos(pitch),
-		// 				cos(yaw)*cos(pitch);
+		// R_ <<	cos(roll)*cos(pitch),
+		//   			cos(roll)*sin(pitch)*sin(yaw) - sin(roll)*cos(yaw),
+		// 					cos(roll)*sin(pitch)*cos(yaw) + sin(roll)*sin(yaw),
+		// 			sin(roll)*cos(pitch),
+		//   			sin(roll)*sin(pitch)*sin(yaw) + cos(roll)*cos(yaw),
+		// 					 sin(roll)*sin(pitch)*cos(yaw) - cos(roll)*sin(yaw),
+		// 			-sin(pitch),
+		// 				cos(pitch)*sin(yaw),
+		// 					cos(pitch)*cos(yaw);
 		Eigen::MatrixXf R(3, 3);
 		R <<	cos(roll)*cos(pitch)*cos(yaw) - sin(roll)*sin(yaw),
 					-cos(roll)*cos(pitch)*sin(yaw) - sin(roll)*cos(yaw),
@@ -160,15 +160,19 @@ void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
 				9.80665;
 		
 		// Eigen::MatrixXf R_(3, 3);
-		// R_ <<	cos(pitch)*cos(roll),
-		//   			sin(yaw)*sin(pitch)*cos(roll) - cos(yaw)*sin(roll),
-		// 				sin(yaw)*sin(roll) + cos(yaw)*sin(pitch)*cos(roll),
-		// 		cos(pitch)*sin(roll),
-		//   			sin(yaw)*sin(pitch)*sin(roll) + cos(yaw)*cos(roll),
-		// 				-sin(yaw)*sin(roll) + cos(yaw)*sin(pitch)*sin(roll),
-		// 		-sin(pitch),
-		// 			sin(yaw)*cos(pitch),
-		// 				cos(yaw)*cos(pitch);
+		// R_ <<	cos(roll)*cos(pitch),
+		//   			cos(roll)*sin(pitch)*sin(yaw) - sin(roll)*cos(yaw),
+		// 					cos(roll)*sin(pitch)*cos(yaw) + sin(roll)*sin(yaw),
+		// 			sin(roll)*cos(pitch),
+		//   			sin(roll)*sin(pitch)*sin(yaw) + cos(roll)*cos(yaw),
+		// 					 sin(roll)*sin(pitch)*cos(yaw) - cos(roll)*sin(yaw),
+		// 			-sin(pitch),
+		// 				cos(pitch)*sin(yaw),
+		// 					cos(pitch)*cos(yaw);
+		Eigen::MatrixXf R__(3, 3);
+		R__ <<	q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,	2*(q.x*q.y - q.w*q.z),	2*(q.x*q.z + q.w*q.y),
+				2*(q.x*q.y + q.w*q.z),	q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,	2*(q.y*q.z - q.w*q.x),
+				2*(q.x*q.z - q.w*q.y),	2*(q.y*q.z + q.w*q.x),	q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z;
 
 		Eigen::MatrixXf R(3, 3);
 		R <<	cos(roll)*cos(pitch)*cos(yaw) - sin(roll)*sin(yaw),
