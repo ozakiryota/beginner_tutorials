@@ -1,5 +1,5 @@
 /*
- *	imu_alignment_nomove.cpp.cpp
+ *	imu_alignment_nomove.cpp
 */
 
 #include <ros/ros.h>
