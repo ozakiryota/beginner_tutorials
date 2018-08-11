@@ -29,7 +29,7 @@ std::vector<beginner_tutorials::imudata> record;
 beginner_tutorials::imudata ave;
 beginner_tutorials::imudata bias;
 bool imu_is_moving = false;
-FILE* fp;
+// FILE* fp;
 
 void calculate_inipose(void)
 {
@@ -77,11 +77,11 @@ void calculate_bias(void)
 	bias.az = ave.az - G(2, 0);
 	std::cout << "bias = " << std::endl << bias << std::endl;
 	
-	// FILE* fp;
-	// fp = fopen("/home/amsl/Desktop/imudata.csv", "w");
-	// for(size_t i=0;i<record.size();i++)	fprintf(fp, "%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", i,record[i].wx, record[i].wy, record[i].wz ,record[i].ax, record[i].ay, record[i].az, record[i].yaw);
-	// for(size_t i=0;i<record.size();i++)	fprintf(fp, "%d\t%f\t%f\t%f\t%f\t%f\t%f\n", i,record[i].wx, record[i].wy, record[i].wz ,record[i].ax-G(0,0), record[i].ay-G(1,0), record[i].az-G(2,0));
-	// fclose(fp);
+	FILE* fp;
+	fp = fopen("/home/amsl/Desktop/imudata_nomove.csv", "w");
+	for(size_t i=0;i<record.size();i++)	fprintf(fp, "%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", i,record[i].wx, record[i].wy, record[i].wz ,record[i].ax, record[i].ay, record[i].az, record[i].yaw);
+	for(size_t i=0;i<record.size();i++)	fprintf(fp, "%d\t%f\t%f\t%f\t%f\t%f\t%f\n", i,record[i].wx, record[i].wy, record[i].wz ,record[i].ax-G(0,0), record[i].ay-G(1,0), record[i].az-G(2,0));
+	fclose(fp);
 }
 
 bool judge_moving(void)
@@ -157,7 +157,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	tmp.yaw = yaw;
 	record.push_back(tmp);
 	
-	fprintf(fp, "%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", record.size(), tmp.wx, tmp.wy, tmp.wz ,tmp.ax, tmp.ay, tmp.az, tmp.yaw);
+	// fprintf(fp, "%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", record.size(), tmp.wx, tmp.wy, tmp.wz ,tmp.ax, tmp.ay, tmp.az, tmp.yaw);
 	// record.push_back({
 	// 	imu.angular_velocity.x,
 	// 	imu.angular_velocity.y,
@@ -189,7 +189,7 @@ int main(int argc, char**argv)
 	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose", 1);
 	ros::Publisher pub_bias = nh.advertise<beginner_tutorials::imudata>("/imu_bias", 1);	
 
-	fp = fopen("/home/amsl/Desktop/imudata.csv", "w");
+	// fp = fopen("/home/amsl/Desktop/imudata.csv", "w");
 	
 	while(ros::ok()&&!imu_is_moving){
 		ros::spinOnce();
@@ -197,10 +197,10 @@ int main(int argc, char**argv)
 	
 	ros::Rate loop_rate(10);
 	while(ros::ok()){
-		ros::spinOnce();
+		// ros::spinOnce();
 		pub_inipose.publish(ini_pose);
 		pub_bias.publish(bias);
 		loop_rate.sleep();
 	}
-	fclose(fp);
+	// fclose(fp);
 }

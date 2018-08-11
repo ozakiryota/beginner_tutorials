@@ -29,7 +29,7 @@ ros::Time last_time;
 // std::vector<beginner_tutorials::imudata> record;
 // IMUDATA bias_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 beginner_tutorials::imudata bias;
-FILE* fp;
+// FILE* fp;
 
 void rotation(geometry_msgs::Quaternion q,	Eigen::MatrixXf& X, bool inverse)
 {
@@ -95,9 +95,9 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		Acc <<	-imu.linear_acceleration.x,
 				-imu.linear_acceleration.y,
 				-imu.linear_acceleration.z;
-		// Acc <<	-imu.linear_acceleration.x + bias.ax,
-		// 		-imu.linear_acceleration.y + bias.ay,
-		// 		-imu.linear_acceleration.z + bias.az;
+		// Acc <<	-imu.linear_acceleration.x - bias.ax,
+		// 		-imu.linear_acceleration.y - bias.ay,
+		// 		-imu.linear_acceleration.z - bias.az;
 			
 		// const double a = 0.5;	//Low Pass Filter 
 		// Acc <<	-(a*imu.linear_acceleration.x + (1.0 - a)*imu_last.linear_acceleration.x),
@@ -142,8 +142,6 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		odom.pose.pose.position.x += V(0, 0)*dt;
 		odom.pose.pose.position.y += V(1, 0)*dt;
 		odom.pose.pose.position.z += V(2, 0)*dt;
-		
-		fprintf(fp, "%f\t%f\t%f\n", -imu.linear_acceleration.x, Acc(0, 0), V(0, 0));
 
 		static tf::TransformBroadcaster broadcaster;
 		geometry_msgs::TransformStamped transform;
@@ -271,7 +269,7 @@ int main(int argc, char** argv)
 			0.0,
 			0.0;
 
-	fp = fopen("/home/amsl/Desktop/imudata.csv", "w");
+	// fp = fopen("/home/amsl/Desktop/imudatayaw.csv", "w");
 
 	ros::Rate loop_rate(10);
 	while(ros::ok()){
@@ -280,5 +278,5 @@ int main(int argc, char** argv)
 		ros::spinOnce();
 		// loop_rate.sleep();
 	}
-	fclose(fp);
+	// fclose(fp);
 }
