@@ -58,6 +58,7 @@ find_package(HDF5 REQUIRED)
 ## Generate messages in the 'msg' folder
 add_message_files(
    FILES
+   imudata.msg
 #   Message1.msg
 #   Message2.msg
 )
@@ -115,7 +116,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES beginner_tutorials
 #  CATKIN_DEPENDS roscpp rospy std_msgs
-#  DEPENDS message_runtime system_lib
+  DEPENDS message_runtime system_lib
 )
 
 ###########
@@ -248,3 +249,5 @@ add_executable(imu_alignment src/imu_alignment.cpp)
 target_link_libraries(imu_alignment ${catkin_LIBRARIES})
 add_executable(imu_odom src/imu_odom.cpp)
 target_link_libraries(imu_odom ${catkin_LIBRARIES})
+add_executable(imu_alignment_nomove src/imu_alignment_nomove.cpp)
+target_link_libraries(imu_alignment_nomove ${catkin_LIBRARIES})

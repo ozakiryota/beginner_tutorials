@@ -1,5 +1,5 @@
 /*
- *	imu_alignment.cpp.cpp
+ *	imu_alignment.cpp
 */
 
 #include <ros/ros.h>
@@ -265,7 +265,7 @@ int main(int argc, char**argv)
 	last_time = ros::Time::now();
 
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
-	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/ini_pose",1);
+	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose",1);
 
 	X <<	0.0,
 	  		0.0,
