@@ -17,7 +17,7 @@ struct IMUDATA{
 	double az;
 };
 
-geometry_msgs::Quaternion ini_pose;
+geometry_msgs::Quaternion initial_pose;
 sensor_msgs::Imu imu;
 sensor_msgs::Imu imu_last;
 nav_msgs::Odometry odom;
@@ -114,8 +114,18 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		// 			-sin(pitch),
 		// 				cos(pitch)*sin(yaw),
 		// 					cos(pitch)*cos(yaw);
-		// Eigen::MatrixXf R(3, 3);
-		// R <<	cos(roll)*cos(pitch)*cos(yaw) - sin(roll)*sin(yaw),
+		// Eigen::MatrixXf Rot(3, 3);
+		// Rot <<	cos(pitch)*cos(yaw),
+		// 			cos(pitch)*sin(yaw),
+		// 				-sin(pitch),
+		// 		sin(roll)*sin(pitch)*cos(yaw) - cos(roll)*sin(yaw),
+		// 			sin(roll)*sin(pitch)*sin(yaw) + cos(roll)*cos(yaw),
+		// 				sin(roll)*cos(pitch),
+		// 		cos(roll)*sin(pitch)*cos(yaw) + sin(roll)*sin(yaw),
+		// 			cos(roll)*sin(pitch)*sin(yaw) - sin(roll)*cos(yaw),
+		// 				cos(roll)*cos(pitch);
+		
+		// Rot <<	cos(roll)*cos(pitch)*cos(yaw) - sin(roll)*sin(yaw),
 		// 			-cos(roll)*cos(pitch)*sin(yaw) - sin(roll)*cos(yaw),
 		// 				cos(roll)*sin(pitch),
 		// 		sin(roll)*cos(pitch)*cos(yaw) + cos(roll)*sin(yaw),
@@ -134,6 +144,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		std::cout << "Acc_before = " << std::endl << Acc << std::endl;
 		rotation(odom.pose.pose.orientation, Acc, true);
 		V = V + (Acc - G)*dt;
+		// V = V + (Rot.inverse()*Acc - G)*dt;
 		std::cout << "Acc_after = " << std::endl << Acc << std::endl;
 		std::cout << "V = " << std::endl << V << std::endl;
 		// odom.twist.twist.linear.x = V(0, 0);
@@ -169,16 +180,16 @@ void callback_bias(const beginner_tutorials::imudataConstPtr& msg)
 
 void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
 {
-	// ini_pose = *msg;
+	// initial_pose = *msg;
 	if(!inipose_is_available){
-		ini_pose = *msg;
+		initial_pose = *msg;
 
 		odom.header.frame_id = PARENT_FRAME;
 		odom.child_frame_id = "/imu_";
 		odom.pose.pose.position.x = 0.0;
 		odom.pose.pose.position.y = 0.0;
 		odom.pose.pose.position.z = 0.0;
-		odom.pose.pose.orientation = ini_pose;
+		odom.pose.pose.orientation = initial_pose;
 		// odom.pose.pose.orientation = imu.orientation;	//(仮)
 		// odom.pose.pose.orientation.x = 0.0;	//(仮)
 		// odom.pose.pose.orientation.y = 0.0;	//(仮)
@@ -199,10 +210,10 @@ void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
 		// double roll, pitch, yaw;
 		// tf::Matrix3x3(q_).getRPY(roll, pitch, yaw);
 
-		Eigen::MatrixXf G(3, 1);
-		G <<	0.0,
-		  		0.0,
-				9.80665;
+		// Eigen::MatrixXf G(3, 1);
+		// G <<	0.0,
+		//   		0.0,
+		// 		9.80665;
 		
 		// Eigen::MatrixXf R_(3, 3);
 		// R_ <<	cos(roll)*cos(pitch),
@@ -214,7 +225,7 @@ void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
 		// 			-sin(pitch),
 		// 				cos(pitch)*sin(yaw),
 		// 					cos(pitch)*cos(yaw);
-		rotation(odom.pose.pose.orientation, G, false);
+		// rotation(odom.pose.pose.orientation, G, false);
 
 		// Eigen::MatrixXf R__(3, 3);
 		// R__ <<	q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,	2*(q.x*q.y - q.w*q.z),	2*(q.x*q.z + q.w*q.y),
