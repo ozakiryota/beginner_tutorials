@@ -275,13 +275,17 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	const size_t record_size = 100;
 	if(record.size()>record_size){
 		record.erase(record.begin());
-		// calculate_average();
+		//calculate_average();
 		imu_is_moving = judge_moving();
+		if(!imu_is_moving){
+			prediction();
+			observation();
+		}
 	}
-	if(record.size()==record_size&&!imu_is_moving){
-		prediction();
-		observation();
-	}
+	// if(record.size()==record_size&&!imu_is_moving){
+	//	prediction();
+	//	observation();
+	// }
 }
 
 int main(int argc, char**argv)
