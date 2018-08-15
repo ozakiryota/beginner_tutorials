@@ -244,12 +244,12 @@ void calculate_average(void)
 	ave.az = 0.0;
 	
 	for(size_t i=0;i<record.size();i++){
-		ave.wx += record[i].wx/(float)record.size();
-		ave.wy += record[i].wy/(float)record.size();
-		ave.wz += record[i].wz/(float)record.size();
-		ave.ax += record[i].ax/(float)record.size();
-		ave.ay += record[i].ay/(float)record.size();
-		ave.az += record[i].az/(float)record.size();
+		ave.wx += record[i].wx/(double)record.size();
+		ave.wy += record[i].wy/(double)record.size();
+		ave.wz += record[i].wz/(double)record.size();
+		ave.ax += record[i].ax/(double)record.size();
+		ave.ay += record[i].ay/(double)record.size();
+		ave.az += record[i].az/(double)record.size();
 	}
 }
 
