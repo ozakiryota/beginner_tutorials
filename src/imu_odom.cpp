@@ -44,7 +44,7 @@ void rotation(geometry_msgs::Quaternion q,	Eigen::MatrixXf& X, bool inverse)
 
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 {
-	// std::cout << "callback_imu" << std::endl;
+	// std::cout << "CALLBACK IMU" << std::endl;
 	imu = *msg;
 
 	current_time = ros::Time::now();
@@ -153,6 +153,9 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		odom.pose.pose.position.x += V(0, 0)*dt;
 		odom.pose.pose.position.y += V(1, 0)*dt;
 		odom.pose.pose.position.z += V(2, 0)*dt;
+		// odom.pose.pose.position.x += V(0, 0)*dt - bias.ax;
+		// odom.pose.pose.position.y += V(1, 0)*dt - bias.ay;
+		// odom.pose.pose.position.z += V(2, 0)*dt - bias.az;
 		
 		fprintf(fp, "%f\t%f\t%f\n", -imu.linear_acceleration.x, Acc(0, 0), V(0, 0));
 
@@ -175,7 +178,9 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 
 void callback_bias(const beginner_tutorials::imudataConstPtr& msg)
 {
+	// std::cout << "CALLBACK BIAS" << std::endl;
 	bias = *msg;
+	std::cout << "bias = " << std::endl << bias << std::endl;
 }
 
 void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
@@ -284,7 +289,7 @@ int main(int argc, char** argv)
 
 	fp = fopen("/home/amsl/Desktop/imudata.csv", "w");
 
-	ros::Rate loop_rate(10);
+	// ros::Rate loop_rate(10);
 	while(ros::ok()){
 		odom.header.stamp = ros::Time::now();
 		if(inipose_is_available)	pub_odom.publish(odom);

@@ -615,7 +615,7 @@ int main(int argc, char** argv)
 	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
-	ros::Publisher g_pub = nh.advertise<sensor_msgs::PointCloud2>("/g_from_normals",1);
+	ros::Publisher g_pub = nh.advertise<sensor_msgs::PointCloud2>("/g_usingwalls",1);
 
 	// const int num_points = 10000;
 	// pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
@@ -751,6 +751,6 @@ int main(int argc, char** argv)
 		// viewer->spinOnce(100);
 		// boost::this_thread::sleep(boost::posix_time::microseconds(100000));
 		ros::spinOnce();
-		loop_rate.sleep();
+		// loop_rate.sleep();
 	}
 }

@@ -1,12 +1,5 @@
 /*
- * ekf_gyro_slam.cpp
- *
- * 状態：姿勢
- * 入力：ジャイロ	角速度	w_roll, w_pitach, w_yaw
- * 観測：SLAM		角度	roll, pitach, yaw
- *
- * X: |roll pitch yaw|^T	グローバル
- * U: |w_x w_y w_z|^T		ローカル
+ * ekf.cpp
 */
 
 #include <ros/ros.h>
@@ -18,214 +11,67 @@
 #include <geometry_msgs/Quaternion.h>
 #include <tf/tf.h>
 
-struct IMUDATA{
-	double wx;
-	double wy;
-	double wz;
-	double ax;
-	double ay;
-	double az;
-};
+#include <tf/transform_listener.h>
 
-std::vector<IMUDATA> record;
-IMUDATA ave;
 sensor_msgs::Imu imu;
 ros::Time current_time;
 ros::Time last_time;
-bool first_callback = true;
+bool inipose_is_available = false;
 
-Eigen::MatrixXf X(3, 1);
-// Eigen::MatrixXf U(3, 1);
-Eigen::MatrixXf P(3, 3);
-// Eigen::MatrixXf jF(3, 3);
-// Eigen::MatrixXf A(3, 3);
-// Eigen::MatrixXf B(3, 3);
+Eigen::MatrixXd X(6, 1);
+Eigen::MatrixXd P(6, 6);
 
-
-geometry_msgs::Quaternion q;
-const double LOOP_RATE = 100.1;
-
-void strapdown(void)
+void input_pose(geometry_msgs::Pose& pose)
 {
-	// float roll = atan2(imu.linear_acceleration.y, imu.linear_acceleration.z);
-	// float pitch = atan2(-imu.linear_acceleration.x, sqrt(imu.linear_acceleration.y*imu.linear_acceleration.y + imu.linear_acceleration.z*imu.linear_acceleration.z));
-	double roll, pitch, yaw;
-	tf::Quaternion tmp_q(imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w);
-	tf::Matrix3x3(tmp_q).getRPY(roll, pitch, yaw);
-	
-	Eigen::MatrixXf Z(2, 1);
-	Z <<	atan2(imu.linear_acceleration.y, imu.linear_acceleration.z),
-			atan2(-imu.linear_acceleration.x, sqrt(imu.linear_acceleration.y*imu.linear_acceleration.y + imu.linear_acceleration.z*imu.linear_acceleration.z));
-	Eigen::MatrixXf H(2, 3);
-	H <<	1,	0,	0,
-			0,	1,	0;
-	Eigen::MatrixXf jH(2, 3);
-	jH <<	1,	0,	0,
-			0,	1,	0;
-	Eigen::MatrixXf I(3, 3);
-	I <<	1,	0,	0,
-			0,	1,	0,
-			0,	0,	1;
-	Eigen::MatrixXf Y(2, 1);
-	Eigen::MatrixXf S(2, 2);
-	Eigen::MatrixXf K(3, 2);
-	
-	Y = Z - H*X;
-	S = jH*P*jH.transpose();
-	K = P*H.transpose()*S.inverse();
-	X = X + K*Y;
-	P = (I - K*H)*P;
-}
-
-bool judge_stopping(void)
-{
-	const float threshold = 0.001;
-	if(fabs(record[record.size()-1].wx - ave.wx)>threshold)	return false;
-	if(fabs(record[record.size()-1].wy - ave.wy)>threshold)	return false;
-	if(fabs(record[record.size()-1].wz - ave.wz)>threshold)	return false;
-	if(fabs(record[record.size()-1].ax - ave.ax)>threshold)	return false;
-	if(fabs(record[record.size()-1].ay - ave.ay)>threshold)	return false;
-	if(fabs(record[record.size()-1].az - ave.az)>threshold)	return false;
-	std::cout << "non move" << std::endl;
-	return true;
-}
-
-void callback_imu(const sensor_msgs::ImuConstPtr& msg)
-{
-	// std::cout << "imu_callback" << std::endl;
-	imu = *msg;
-
-	ave = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-	for(size_t i=0;i<record.size();i++){
-		ave.wx += record[i].wx/(float)record.size();
-		ave.wy += record[i].wy/(float)record.size();
-		ave.wz += record[i].wz/(float)record.size();
-		ave.ax += record[i].ax/(float)record.size();
-		ave.ay += record[i].ay/(float)record.size();
-		ave.az += record[i].az/(float)record.size();
-	}
-	record.push_back({
-		imu.angular_velocity.x,
-		imu.angular_velocity.y,
-		imu.angular_velocity.z,
-		imu.linear_acceleration.x,
-		imu.linear_acceleration.y,
-		imu.linear_acceleration.z
-	});
-	if(!first_callback){
-		if(judge_stopping)	strapdown();
-	}
-		
-	const size_t num_record = 100;
-	if(record.size()>num_record)	record.erase(record.begin());
-
-
-	current_time = ros::Time::now();
-	double dt = (current_time - last_time).toSec();
-	last_time = current_time;
-
-	if(!first_callback){
-		Eigen::MatrixXf U(3, 1);
-		U <<	-imu.angular_velocity.x*dt,
-		  		-imu.angular_velocity.y*dt,
-				-imu.angular_velocity.z*dt;
-
-		Eigen::MatrixXf A(3, 3);
-		A <<	1,  0,  0,
-				0,  1,  0,
-				0,  0,  1;
-
-		Eigen::MatrixXf B(3, 3);
-		B <<    1,	sin(X(0, 0))*tan(X(1, 0)),	cos(X(0, 0))*tan(X(1, 0)),
-	    	0,	cos(X(0, 0)),	-sin(X(1, 0)),
-			0,	sin(X(0, 0))/cos(X(1, 0)),	cos(X(0, 0))/cos(X(1, 0));
-
-		Eigen::MatrixXf jF(3, 3);
-		jF <<	U(1, 0)*tan(X(1, 0))*cos(X(0, 0)) - U(2, 0)*tan(X(1, 0))*sin(X(0, 0)),
-					U(1, 0)*sin(X(0, 0))/( cos(X(1, 0))*cos(X(1, 0)) ) - U(2, 0)*cos(X(0, 0))/( cos(X(1, 0))*cos(X(1, 0)) ),
-						0,
-				-U(1, 0)*sin(X(0, 0)) - U(2, 0)*cos(X(0, 0)),
-					0,
-						0,
-				U(1, 0)/cos(X(1, 0))*cos(X(0, 0)) - U(2, 0)/cos(X(1, 0))*sin(X(0, 0)),
-					U(1, 0)*sin(X(0, 0 ))*sin(X(1, 0))/( cos(X(1, 0))*cos(X(1, 0)) ) + U(2, 0)*cos(X(0, 0))*sin(X(1, 0))/( cos(X(1, 0))*cos(X(1, 0)) ),
-						0;
-		
-		Eigen::MatrixXf Q(3, 3);
-		
-		X = A*X + B*U;
-		P = jF*P*jF.transpose();
-	}
-	
-	first_callback = false;
-}
-
-void callback_observation0(const geometry_msgs::QuaternionConstPtr& msg)
-{
-	tf::Quaternion q(msg->x, msg->y, msg->z, msg->w);
-	double roll;
-	double pitch;
-	double yaw;
-	tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
-
-	Eigen::MatrixXf H(3, 3);
-	H <<	1,  0,  0,
-			0,  1,  0;  
-			0,  0,  1;
-
-	Eigen::MatrixXf Z(3, 1);
-	Z <<	roll,
-			pitch,
-			yaw;
-	
-	Eigen::MatrixXf I;
-	I <<	1,  0,  0,
-			0,  1;  0,
-			0,  0,  1;
-	
-	Eigen::MatrixXf R(3, 3);
-
-	Eigen::MatrixXf Y(3, 1);
-	Eigen::MatrixXf S(3, 3);
-	Eigen::MatrixXf K(3, 3);
-	
-	Y = Z - H*X;
-	S = H*P*H.transpose();
-	K = P*H.transpose()*S.inverse();
-	X = X + (K*Y);
-	P = (I - K*H)*P;
+	tf::Quaternion q_ = tf::createQuaternionFromRPY(X(0, 0), X(1, 0), X(2, 0));
+	quaternionTFToMsg(q_, pose.orientation);
+	pose.position.x = 0.0;
+	pose.position.y = 0.0;
+	pose.position.z = 0.0;
 }
 
 void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
-	pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointXYZINormal>);
-	pcl::fromROSMsg(*msg, *g_vector);
+	std::cout << "CALLBACK OBSERVATION USINGWALLS" << std::endl;
+	if(inipose_is_available){
+		pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointXYZINormal>);
+		pcl::fromROSMsg(*msg, *g_vector);
 
-	const float g = 9.80665;
-	Eigen::MatrixXf Z(2, 1);
-	Z <<	atan2(g_vector->points[0].normal_y*g, g_vector->points[0].normal_z*g),
-			atan2(-g_vector->points[0].normal_x*g, sqrt(g_vector->points[0].normal_y*g*g_vector->points[0].normal_y*g + g_vector->points[0].normal_z*g*g_vector->points[0].normal_z*g));
-	Eigen::MatrixXf H(2, 3);
-	H <<	1,	0,	0,
-			0,	1,	0;
-	Eigen::MatrixXf jH(2, 3);
-	jH <<	1,	0,	0,
-			0,	1,	0;
-	Eigen::MatrixXf I(3, 3);
-	I <<	1,	0,	0,
-			0,	1,	0,
-			0,	0,	1;
-	Eigen::MatrixXf R(3, 3);
-	
-	Eigen::MatrixXf Y(2, 1);
-	Eigen::MatrixXf S(2, 2);
-	Eigen::MatrixXf K(3, 2);
-	
-	Y = Z - H*X;
-	S = jH*P*jH.transpose();
-	K = P*H.transpose()*S.inverse();
-	X = X + K*Y;
-	P = (I - K*H)*P;
+		const float g = -9.80665;
+		double gx = g_vector->points[0].normal_x*g; 
+		double gy = g_vector->points[0].normal_y*g; 
+		double gz = g_vector->points[0].normal_z*g; 
+
+		Eigen::MatrixXd Z(2, 1);
+		Z <<	atan2(gy, gz),
+		  		atan2(-gx, sqrt(gy*gy + gz*gz));
+		// Z <<	atan2(g_vector->points[0].normal_y*g, g_vector->points[0].normal_z*g),
+		// 		atan2(-g_vector->points[0].normal_x*g, sqrt(g_vector->points[0].normal_y*g*g_vector->points[0].normal_y*g + g_vector->points[0].normal_z*g*g_vector->points[0].normal_z*g));
+
+		Eigen::MatrixXd H(2, 6);
+		H <<	1,	0,	0,	0,	0,	0,
+				0,	1,	0,	0,	0,	0;
+
+		Eigen::MatrixXd jH(2, 6);
+		jH <<	1,	0,	0,	0,	0,	0,
+				0,	1,	0,	0,	0,	0;
+
+		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(6, 6);
+
+		Eigen::MatrixXd R(2, 2);
+		const double sigma = 1.0e+2;
+		R = sigma*Eigen::MatrixXd::Identity(2, 2);
+
+		Eigen::MatrixXd Y(2, 1);
+		Eigen::MatrixXd S(2, 2);
+		Eigen::MatrixXd K(12, 2);
+
+		Y = Z - H*X;
+		S = jH*P*jH.transpose() + R;
+		K = P*H.transpose()*S.inverse();
+		X = X + K*Y;
+		P = (I - K*H)*P;
+	}
 }
 
 void callback_observation_slam(const geometry_msgs::QuaternionConstPtr& msg)
@@ -234,27 +80,27 @@ void callback_observation_slam(const geometry_msgs::QuaternionConstPtr& msg)
 	tf::Quaternion tmp_q(imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w);
 	tf::Matrix3x3(tmp_q).getRPY(roll, pitch, yaw);
 	
-	Eigen::MatrixXf Z(3, 1);
+	Eigen::MatrixXd Z(3, 1);
 	Z <<	roll,
 			pitch,
 			yaw;
-	Eigen::MatrixXf H(3, 3);
+	Eigen::MatrixXd H(3, 3);
 	H <<	1,	0,	0,
 			0,	1,	0,
 			0,	0,	1;
-	Eigen::MatrixXf jH(3, 3);
+	Eigen::MatrixXd jH(3, 3);
 	jH <<	1,	0,	0,
 			0,	1,	0,
 			0,	0,	1;
-	Eigen::MatrixXf I(3, 3);
+	Eigen::MatrixXd I(3, 3);
 	I <<	1,	0,	0,
 			0,	1,	0,
 			0,	0,	1;
-	Eigen::MatrixXf R(3, 3);
+	Eigen::MatrixXd R(3, 3);
 	
-	Eigen::MatrixXf Y(3, 1);
-	Eigen::MatrixXf S(3, 3);
-	Eigen::MatrixXf K(3, 3);
+	Eigen::MatrixXd Y(3, 1);
+	Eigen::MatrixXd S(3, 3);
+	Eigen::MatrixXd K(3, 3);
 	
 	Y = Z - H*X;
 	S = jH*P*jH.transpose();
@@ -263,68 +109,79 @@ void callback_observation_slam(const geometry_msgs::QuaternionConstPtr& msg)
 	P = (I - K*H)*P;
 }
 
-void prediction0(Eigen::MatrixXf& X, Eigen::MatrixXf& P, float dt)
+void prediction(double dt)
 {
-	float ang_x = X.coeffRef(0, 0);
-	float ang_y = X.coeffRef(1, 0);
-	float ang_z = X.coeffRef(2, 0);
-	float w_xx = imu.angular_velocity.x;
-	float w_yy = imu.angular_velocity.y;
-	float w_zz = imu.angular_velocity.z;
+	std::cout << "PREDICTION" << std::endl;
+	double roll = X(0, 0);
+	double pitch = X(1, 0);
+	double yaw = X(2, 0);
+	double wx = imu.angular_velocity.x;
+	double wy = imu.angular_velocity.y;
+	double wz = imu.angular_velocity.z;
+	
+	Eigen::MatrixXd F(6, 1);
+	F <<	roll + (wx + sin(roll)*tan(pitch)*wy + cos(roll)*tan(pitch)*wz)*dt,
+	  		pitch + (cos(roll)*wy - sin(roll)*wz)*dt,
+			yaw + (sin(roll)/cos(pitch)*wy + cos(roll)/cos(pitch)*wz)*dt,
+			wx,
+			wy,
+			wz;
 
-	Eigen::MatrixXf A(3, 3);
-	A <<	1,	0,	0,
-	  		0,	1;	0,
-			0,	0,	1;
-	Eigen::MatrixXf B(3, 3);	//参照：https://hamachannel.hatenablog.com/entry/2018/05/13/155504
-	B <<	1,	sin(ang_x)*tan(ang_y),	cos(ang_x)*tan(ang_y),
-			0,	cos(ang_x),		-sin(ang_x),
-			0,	sin(ang_x)/cos(ang_y),	cos(ang_x)/cos(ang_y);
-	Eigen::MatrixXf U(3, 1);
-	U <<	w_xx*dt,
-	  	w_yy*dt,
-		w_zz*dt;
-	Eigen::MatrixXf jF(3, 3);	//ヤコビ行列
-	jF <<	1+dt*(w_yy*tan(ang_y)*cos(ang_x)-w_zz*tan(ang_y)*sin(ang_x)),	dt*(-w_yy*sin(ang_x)-w_zz*cos(ang_x)),	dt*(w_yy/cos(ang_y)*cos(ang_x)-w_zz/cos(ang_y)*sin(ang_x)),
-		dt*(w_yy*sin(ang_x)/(cos(ang_y)*cos(ang_y))+w_zz*cos(ang_x)/(cos(ang_y)*cos(ang_y))),	1,	dt*(w_yy*sin(ang_x)*sin(ang_y)/(cos(ang_y)*cos(ang_y))+w_zz*cos(ang_x)*sin(ang_y)/(cos(ang_y)*cos(ang_y))),
-		0,	0,	1;	
-	X = A*X+B*U;
-	P = jF*P*jF.transpose();
+	double df0dx0 = 1.0 + (cos(roll)*tan(pitch)*wy - sin(roll)*tan(pitch)*wz)*dt;
+	double df0dx1 = (sin(roll)/cos(pitch)/cos(pitch)*wy + cos(roll)/cos(pitch)/cos(pitch)*wz)*dt;
+	double df0dx2 = 0.0;
+	double df0dx3 = dt;
+	double df0dx4 = sin(roll)*tan(pitch)*dt;
+	double df0dx5 = cos(roll)*tan(pitch)*dt;
+	double df1dx0 = (-sin(roll)*wy - cos(roll)*wz)*dt;
+	double df1dx1 = 1.0;
+	double df1dx2 = 0.0;
+	double df1dx3 = 0.0;
+	double df1dx4 = cos(roll)*dt;
+	double df1dx5 = -sin(roll)*dt;
+	double df2dx0 = (cos(roll)/cos(pitch)*wy - sin(roll)/cos(pitch)*wz)*dt;
+	double df2dx1 = (-sin(roll)/sin(pitch)*wy - cos(roll)/sin(pitch)*wz)*dt;
+	double df2dx2 = 1.0;
+	double df2dx3 = 0.0;
+	double df2dx4 = sin(roll)/cos(pitch)*dt;
+	double df2dx5 = cos(roll)/cos(pitch)*dt;
+
+	Eigen::MatrixXd jF(6, 6);
+	jF <<	df0dx0,	df0dx1,	df0dx2,	df0dx3,	df0dx4,	df0dx5,
+			df1dx0,	df1dx1,	df1dx2,	df1dx3,	df1dx4,	df1dx5,
+			df2dx0,	df2dx1,	df2dx2,	df2dx3,	df2dx4,	df2dx5,
+			0.0,	0.0,	0.0,	1.0,	0.0,	0.0,
+			0.0,	0.0,	0.0,	0.0,	1.0,	0.0,
+			0.0,	0.0,	0.0,	0.0,	0.0,	1.0;
+		
+	Eigen::MatrixXd Q(6, 6);
+	const double sigma = 1.0e-2;
+	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(6, 6);
+	Q = sigma*I;
+
+	X = F;
+	P = jF*P*jF.transpose() + Q;
 }
 
-void mesurement_update(Eigen::MatrixXf& X, Eigen::MatrixXf& P, float dt, float a_x, float a_y, float a_z)
+void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 {
-	//SLAMから得られる姿勢
-	float roll;
-	float pitch;
-	float yaw;
+	// std::cout << "imu_callback" << std::endl;
+	imu = *msg;
 
-	//const int n = 4;
-	Eigen::MatrixXf H(3, 3);
-	H <<	1,	0,	0,
-	  		0,	1,	0;
-	  		0,	0,	1;
-	Eigen::MatrixXf Z(3, 1);
-	Z <<	roll,
-			pitch,
-			yaw;
-	Eigen::MatrixXf Y(3, 1);
-	Eigen::MatrixXf S(3, 3);
-	Eigen::MatrixXf R(3, 3);
-	R <<	0.03,	0,	0,
-	  		0,	0.03,	0,
-			0,	0,	0.03;
-	Eigen::MatrixXf K(3, 3);
-	Eigen::MatrixXf I;
-	I <<	1,	0,	0,
-	  		0,	1;	0,
-			0,	0,	1;
+	current_time = ros::Time::now();
+	double dt = (current_time - last_time).toSec();
+	last_time = current_time;
 
-	Y = Z-H*X;
-	S = H*P*H.transpose()+R;
-	K = P*H.transpose()*S.inverse();
-	X = X+(K*Y);
-	P = (I-K*H)*P;
+	if(inipose_is_available)	prediction(dt);
+}
+
+void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
+{
+	if(!inipose_is_available){
+		tf::Quaternion tmp_q(msg->x, msg->y, msg->z, msg->w);
+		tf::Matrix3x3(tmp_q).getRPY(X(0, 0), X(1, 0), X(2, 0));
+		inipose_is_available = true;
+	}
 }
 
 int main(int argc, char**argv)
@@ -334,20 +191,20 @@ int main(int argc, char**argv)
 
 	current_time = ros::Time::now();
 	last_time = ros::Time::now();
+	
+	geometry_msgs::Pose pose;
 
+	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 1, callback_inipose);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
 	ros::Subscriber sub_obs = nh.subscribe("/g_usingwalls", 10, callback_observation_usingwalls);
+	ros::Publisher pub_pose = nh.advertise<geometry_msgs::Pose>("/pose_estimation", 1);
 
-	Eigen::MatrixXf X = Eigen::MatrixXf::Zero(3, 1);
-	Eigen::MatrixXf P(3, 3);
-	P <<	1000,	0,	0,
-	  		0,	 1000,	0,
-			0,	0,	1000;
-	X <<	0.0,
-	  		0.0,
-			0.0;
+	X = Eigen::MatrixXd::Constant(6, 1, 0.0);
+	P = 100.0*Eigen::MatrixXd::Identity(6, 6);
 
 	while(ros::ok()){
 		ros::spinOnce();
+		input_pose(pose);
+		pub_pose.publish(pose);
 	}
 }

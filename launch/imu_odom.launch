@@ -9,8 +9,8 @@
 	</node>
 		
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ros_catkin_ws/bagfiles/xsens_mti30_aa&#45;oq&#45;wr1.bag"/> -->
-	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/2018&#45;05&#45;08&#45;19&#45;45&#45;05.bag"/> -->
-	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/2018-08-16-11-25-36.bag -r 5"/>
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/2018-05-08-19-45-05.bag"/>
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/nomove_5min_20180816.bag &#45;r 30"/> -->
 
 	<node pkg="rviz" type="rviz" name="rviz"/>
 

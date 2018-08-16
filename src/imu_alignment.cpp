@@ -15,12 +15,21 @@ sensor_msgs::Imu imu;
 geometry_msgs::Quaternion initial_pose;
 std::vector<beginner_tutorials::imudata> record;
 beginner_tutorials::imudata ave;
+beginner_tutorials::imudata bias;
 ros::Time current_time;
 ros::Time last_time;
 bool imu_is_moving = false;
 Eigen::MatrixXd X(12, 1);
 Eigen::MatrixXd P(12, 12);
 FILE* fp;
+
+void input_bias(void)
+{
+	std::cout << "INPUT INITIALPOSE" << std::endl;
+	bias.ax = X(6, 0);
+	bias.ay = X(7, 0);
+	bias.az = X(8, 0);
+}
 
 void input_initialpose(void)
 {
@@ -119,12 +128,16 @@ void observation(void)
 	
 	std::random_device rnd;
 	std::mt19937 engine(rnd());
-	const double sigma = 1.0e-5;
+	const double sigma = 1.0e-3;
 	std::normal_distribution<double> dist(0.0, sigma);
-	std::cout << "obs_dist(engine) = " << dist(engine) << std::endl;
+	// std::cout << "obs_dist(engine) = " << dist(engine) << std::endl;
 	Eigen::MatrixXd R(3, 3);
 	Eigen::MatrixXd I3 = Eigen::MatrixXd::Identity(3, 3);
 	R = sigma*I3;
+	R <<	1.0e-9,	1.0e-9,	1.0e-5,
+	  		1.0e-9,	1.0e-9,	1.0e-5,
+			1.0e-5,	1.0e-5,	1.0e-3;
+	// R = Eigen::MatrixXd::Constant(3, 3, sigma);
 	Eigen::MatrixXd H(3, 1);
 	Eigen::MatrixXd Y(3, 1);
 	Eigen::MatrixXd S(3, 3);
@@ -173,7 +186,7 @@ void prediction(void)
 	Eigen::MatrixXd F(12, 1);
 	F <<	atan2(ay, az),
 			atan2(-ax, sqrt(ay*ay + az*az)),
-			yaw,	// -atan2(wy, wx),
+			0.0,	//yaw,	// -atan2(wy, wx),
 			ave.ax,	//imu.linear_acceleration.x,
 			ave.ay,	//imu.linear_acceleration.y,
 			ave.az,	//imu.linear_acceleration.z,
@@ -184,7 +197,7 @@ void prediction(void)
 			X(10, 0),
 			X(11, 0);
 	
-	fprintf(fp, "%f\t%f\t%f\t%f\t%f\t%f\n", F(0, 0), F(1, 0), F(2, 0), F(3, 0), F(4, 0), F(5, 0));
+	// fprintf(fp, "%f\t%f\t%f\t%f\t%f\t%f\n", F(0, 0), F(1, 0), F(2, 0), F(3, 0), F(4, 0), F(5, 0));
 	
 	double drday = 1.0/(1.0 + (ay/az)*(ay/az))*(1.0/az);
 	double drdaz = 1.0/(1.0 + (ay/az)*(ay/az))*(-ay/(az*az));
@@ -210,24 +223,25 @@ void prediction(void)
 	
 	std::random_device rnd;
 	std::mt19937 engine(rnd());
-	const double sigma = 0.001;
+	const double sigma = 1.0e-2;
 	std::normal_distribution<double> dist(0.0, sigma);
 	// std::cout << "pre_dist(engine) = " << dist(engine) << std::endl;
 	Eigen::MatrixXd Q(12, 12);
-	// Eigen::MatrixXd I = Eigen::MatrixXd::Identity(12, 12);
-	// Q = sigma*I;
-	Q <<	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
-			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
-			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	
-			1.0,	0.0,	0.0,	6.0e-5,	2.5e-5,	2.5e-6,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
-			0.0,	1.0,	0.0,	2.5e-5,	7.0e-5,	5.0e-6,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
-			0.0,	0.0,	1.0,	2.5e-6,	5.0e-6,	8.0e-5,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
-			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,	0.0,	0.0,	0.0,
-			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,	0.0,	0.0,
-			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,	0.0,
-			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,
-			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,
-			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0;
+	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(12, 12);
+	Q = sigma*I;
+	// Q = Eigen::MatrixXd::Constant(12, 12, sigma);
+	// Q <<	3.0e-8,	4.0e-9,	-1.0e-7,	-4.0e-8,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+	// 		0.0,	9.0e-9,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+	// 		0.0,	0.0,	9.0e-6,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	
+	// 		1.0,	0.0,	0.0,	1.0e-6,	2.5e-5,	2.5e-6,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+	// 		0.0,	1.0,	0.0,	2.5e-5,	1.0e-6,	5.0e-6,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+	// 		0.0,	0.0,	1.0,	2.5e-6,	5.0e-6,	1.0e-6,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+	// 		0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+	// 		0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,	0.0,	0.0,
+	// 		0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,	0.0,
+	// 		0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,
+	// 		0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,
+	// 		0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0;
 	
 	X = F;
 	P = jF*P*jF.transpose() + Q;
@@ -251,7 +265,7 @@ void prediction(void)
 bool judge_moving(void)
 {
 	const float threshold_w = 0.03;
-	const float threshold_a = 0.03;
+	const float threshold_a = 0.05;
 	if(fabs(record[record.size()-1].wx - ave.wx)>threshold_w){
 		return true;
 	}
@@ -339,7 +353,8 @@ int main(int argc, char**argv)
 	last_time = ros::Time::now();
 
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
-	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose",1);
+	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose", 1);
+	ros::Publisher pub_bias = nh.advertise<beginner_tutorials::imudata>("/imu_bias", 10);
 
 	X = Eigen::MatrixXd::Constant(12, 1, 0.0);
 	std::cout << "X = " << std::endl << X << std::endl;
@@ -356,10 +371,12 @@ int main(int argc, char**argv)
 	
 	fclose(fp);
 	input_initialpose();
+	input_bias();
 	
 	ros::Rate loop_rate(10);
 	while(ros::ok()){
 		pub_inipose.publish(initial_pose);
+		pub_bias.publish(bias);
 		loop_rate.sleep();
 	}
 }
