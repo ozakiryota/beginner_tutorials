@@ -119,7 +119,7 @@ void observation(void)
 	
 	std::random_device rnd;
 	std::mt19937 engine(rnd());
-	const double sigma = 0.001;
+	const double sigma = 1.0e-5;
 	std::normal_distribution<double> dist(0.0, sigma);
 	std::cout << "obs_dist(engine) = " << dist(engine) << std::endl;
 	Eigen::MatrixXd R(3, 3);
@@ -149,7 +149,7 @@ void observation(void)
 	// std::cout << "X_obs = " << std::endl << X << std::endl;
 	// std::cout << "P_obs = " << std::endl << P << std::endl;
 	
-	fprintf(fp, "%f\t%f\t%f\n", Y(0, 0), Y(1, 0), Y(2, 0));
+	// fprintf(fp, "%f\t%f\t%f\n", Y(0, 0), Y(1, 0), Y(2, 0));
 	// fprintf(fp, "%f\t%f\t%f\n", imu.linear_acceleration.x, imu.linear_acceleration.y, imu.linear_acceleration.z);
 }
 
@@ -184,6 +184,8 @@ void prediction(void)
 			X(10, 0),
 			X(11, 0);
 	
+	fprintf(fp, "%f\t%f\t%f\t%f\t%f\t%f\n", F(0, 0), F(1, 0), F(2, 0), F(3, 0), F(4, 0), F(5, 0));
+	
 	double drday = 1.0/(1.0 + (ay/az)*(ay/az))*(1.0/az);
 	double drdaz = 1.0/(1.0 + (ay/az)*(ay/az))*(-ay/(az*az));
 	double dpdax = 1.0/(1.0 + (-ax/sqrt(ay*ay + az*az)*(-ax/sqrt(ay*ay + az*az))))*(-1.0/sqrt(ay*ay + az*az));
@@ -212,8 +214,20 @@ void prediction(void)
 	std::normal_distribution<double> dist(0.0, sigma);
 	// std::cout << "pre_dist(engine) = " << dist(engine) << std::endl;
 	Eigen::MatrixXd Q(12, 12);
-	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(12, 12);
-	Q = sigma*I;
+	// Eigen::MatrixXd I = Eigen::MatrixXd::Identity(12, 12);
+	// Q = sigma*I;
+	Q <<	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	
+			1.0,	0.0,	0.0,	6.0e-5,	2.5e-5,	2.5e-6,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+			0.0,	1.0,	0.0,	2.5e-5,	7.0e-5,	5.0e-6,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+			0.0,	0.0,	1.0,	2.5e-6,	5.0e-6,	8.0e-5,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,	0.0,	0.0,	0.0,
+			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,	0.0,	0.0,
+			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,	0.0,
+			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,	0.0,
+			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	0.0,
+			0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	1.0;
 	
 	X = F;
 	P = jF*P*jF.transpose() + Q;
@@ -221,16 +235,44 @@ void prediction(void)
 	// std::cout << "P_pre = " << std::endl << P << std::endl;
 }
 
+// bool judge_moving(void)
+// {
+// 	const float threshold_w = 0.03;
+// 	const float threshold_a = 0.05;
+// 	if(fabs(record[record.size()-1].wx - ave.wx)>threshold_w)	return true;
+// 	if(fabs(record[record.size()-1].wy - ave.wy)>threshold_w)	return true;
+// 	if(fabs(record[record.size()-1].wz - ave.wz)>threshold_w)	return true;
+// 	if(fabs(record[record.size()-1].ax - ave.ax)>threshold_a)	return true;
+// 	if(fabs(record[record.size()-1].ay - ave.ay)>threshold_a)	return true;
+// 	if(fabs(record[record.size()-1].az - ave.az)>threshold_a)	return true;
+// 	return false;
+// }
+
 bool judge_moving(void)
 {
 	const float threshold_w = 0.03;
 	const float threshold_a = 0.03;
-	if(fabs(record[record.size()-1].wx - ave.wx)>threshold_w)	return true;
-	if(fabs(record[record.size()-1].wy - ave.wy)>threshold_w)	return true;
-	if(fabs(record[record.size()-1].wz - ave.wz)>threshold_w)	return true;
-	if(fabs(record[record.size()-1].ax - ave.ax)>threshold_a)	return true;
-	if(fabs(record[record.size()-1].ay - ave.ay)>threshold_a)	return true;
-	if(fabs(record[record.size()-1].az - ave.az)>threshold_a)	return true;
+	if(fabs(record[record.size()-1].wx - ave.wx)>threshold_w){
+		return true;
+	}
+	if(fabs(record[record.size()-1].wy - ave.wy)>threshold_w){
+		return true;
+	}
+	if(fabs(record[record.size()-1].wz - ave.wz)>threshold_w){
+		return true;
+	}
+	if(fabs(record[record.size()-1].ax - ave.ax)>threshold_a){
+		std::cout << "ax" << std::endl;
+		return true;
+	}
+	if(fabs(record[record.size()-1].ay - ave.ay)>threshold_a){
+		std::cout << "ay" << std::endl;
+		return true;
+	}
+	if(fabs(record[record.size()-1].az - ave.az)>threshold_a){
+		std::cout << "az" << std::endl;
+		return true;
+	}
 	return false;
 }
 
