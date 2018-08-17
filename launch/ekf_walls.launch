@@ -13,7 +13,7 @@
 	<node pkg="beginner_tutorials" name="sq2_normals" type="sq2_normals">
 		<param name="LOOP_RATE" value="10.0"/>
 		<param name="SEARCH_RADIUS" value="0.5"/>
-		<param name="RANDOM_STEP_MAX" value="100"/>
+		<param name="RANDOM_STEP_MAX" value="200"/>
 		<param name="THRESHOLD_REF_POINTS" value="20"/>
 		<param name="THRESHOLD_ANGLE_FROM_G" value="30.0"/>
 		<param name="THRESHOLD_SUM_SQUARE_ERRORS" value="0.001"/>
