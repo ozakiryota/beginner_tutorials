@@ -10,10 +10,10 @@
 		<!-- <remap from="~/cloud" to="/cloud" /> -->
 	</node>
 
-	<node pkg="beginner_tutorials" name="sq2_normals" type="sq2_normals" output="screen">
+	<node pkg="beginner_tutorials" name="sq2_normals" type="sq2_normals">
 		<param name="LOOP_RATE" value="10.0"/>
 		<param name="SEARCH_RADIUS" value="0.5"/>
-		<param name="RANDOM_STEP_MAX" value="500"/>
+		<param name="RANDOM_STEP_MAX" value="100"/>
 		<param name="THRESHOLD_REF_POINTS" value="20"/>
 		<param name="THRESHOLD_ANGLE_FROM_G" value="30.0"/>
 		<param name="THRESHOLD_SUM_SQUARE_ERRORS" value="0.001"/>
@@ -25,9 +25,9 @@
 		<param name="FACTOR_4" value="1.0"/>	<!-- num_groups -->
 	</node>
 
-	<node pkg="beginner_tutorials" name="imu_alignment" type="imu_alignment" />
+	<node pkg="beginner_tutorials" name="imu_alignment" type="imu_alignment" output="screen"/>
 
-	<node pkg="beginner_tutorials" name="ekf" type="ekf" />
+	<node pkg="beginner_tutorials" name="ekf" type="ekf" output="screen"/>
 
 	<node pkg="beginner_tutorials" name="tf_from_posemsg" type="tf_from_posemsg">
 		<param name="SUB_MSG" value="/pose_estimation"/>

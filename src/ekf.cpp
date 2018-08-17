@@ -111,7 +111,7 @@ void callback_observation_slam(const geometry_msgs::QuaternionConstPtr& msg)
 
 void prediction(double dt)
 {
-	std::cout << "PREDICTION" << std::endl;
+	// std::cout << "PREDICTION" << std::endl;
 	double roll = X(0, 0);
 	double pitch = X(1, 0);
 	double yaw = X(2, 0);

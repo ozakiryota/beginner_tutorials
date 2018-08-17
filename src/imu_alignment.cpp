@@ -25,7 +25,7 @@ FILE* fp;
 
 void input_bias(void)
 {
-	std::cout << "INPUT INITIALPOSE" << std::endl;
+	std::cout << "INPUT BIAS" << std::endl;
 	bias.ax = X(6, 0);
 	bias.ay = X(7, 0);
 	bias.az = X(8, 0);
