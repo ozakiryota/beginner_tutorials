@@ -8,14 +8,14 @@
 #include <Eigen/LU>
 #include "beginner_tutorials/imudata.h"
 
-struct IMUDATA{
-	double wx;
-	double wy;
-	double wz;
-	double ax;
-	double ay;
-	double az;
-};
+// struct IMUDATA{
+// 	double wx;
+// 	double wy;
+// 	double wz;
+// 	double ax;
+// 	double ay;
+// 	double az;
+// };
 
 // geometry_msgs::Quaternion initial_pose;
 sensor_msgs::Imu imu;
