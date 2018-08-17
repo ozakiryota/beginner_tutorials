@@ -11,19 +11,20 @@
 // #include <pcl/io/pcd_io.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <geometry_msgs/Pose.h>
+// #include <Eigen/Core>
+#include <tf/tf.h>
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 // std::vector<int> num_subpoints;
 // ros::Time tm;
-std::vector<float> g_est ={
-	0.0,
-	0.0,
-	1.0};
+std::vector<float> g_local;
+bool g_local_is_available = false;
 
 struct	FEATURES{
 	size_t num_refpoints;
 	float fitting_error;
-	float ang_from_g_est;
+	float ang_from_g_local;
 	float weight;
 	int neighbor_index;
 	int num_groups;
@@ -187,8 +188,11 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 		// setViewPoint (float vpx, float vpy, float vpz);
 		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
 		// std::cout << "norm of normal = " << sqrt(plane_parameters[0]*plane_parameters[0] + plane_parameters[1]*plane_parameters[1] + plane_parameters[2]*plane_parameters[2]) << std::endl;
-		
-		float tmp_ang_from_g_est = fabs(acosf(plane_parameters[0]*g_est[0] + plane_parameters[1]*g_est[1] + plane_parameters[2]*g_est[2]));
+	
+		std::vector<float> tmp_vector = {plane_parameters[0], plane_parameters[1], plane_parameters[2]};
+		// float tmp_ang_from_g_est = fabs(acosf(plane_parameters[0]*g_est[0] + plane_parameters[1]*g_est[1] + plane_parameters[2]*g_est[2]));
+		float tmp_ang_from_g_local = angle_between_vectors(tmp_vector, g_local);
+
 		// std::coutimate a covariance matrix from a set of points in PCL, you can use: << "tmp_ang_from_g_est = " << tmp_ang_from_g_est << std::endl;
 		// std::vector<float> a = {plane_parameters[0], plane_parameters[1], plane_parameters[2]};
 		// tmp_ang_from_g_est = angle_between_vectors(a, g_est);
@@ -197,8 +201,8 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 		// std::cout << "fabs(tmp_ang_from_g_est) = " << fabs(tmp_ang_from_g_est) << std::endl;
 		// const float ang_threshold = 30.0/180.0*M_PI;
 		// std::cout << "ang_threshold = " << ang_threshold << std::endl;
-		if(tmp_ang_from_g_est<THRESHOLD_ANGLE_FROM_G/180.0*M_PI || tmp_ang_from_g_est>(M_PI-THRESHOLD_ANGLE_FROM_G/180.0*M_PI)){
-			std::cout << ">> tmp_ang_from_g_est is too small or large, then skip" << std::endl;
+		if(tmp_ang_from_g_local<THRESHOLD_ANGLE_FROM_G/180.0*M_PI || tmp_ang_from_g_local>(M_PI-THRESHOLD_ANGLE_FROM_G/180.0*M_PI)){
+			std::cout << ">> tmp_ang_from_g_local is too small or large, then skip" << std::endl;
 			continue;
 		}
 		//if(indices.size()<3||plane_parameters[2]>0.8||plane_parameters[2]<-0.8){
@@ -232,7 +236,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 			tmp_normal.x = cloud->points[i].x;
 			tmp_normal.y = cloud->points[i].y;
 			tmp_normal.z = cloud->points[i].z;
-			flipNormalTowardsViewpoint (tmp_normal, 0.0, 0.0, 1.0, plane_parameters);
+			// flipNormalTowardsViewpoint (tmp_normal, 0.0, 0.0, 1.0, plane_parameters);
 			tmp_normal.normal_x = plane_parameters[0];
 			tmp_normal.normal_y = plane_parameters[1];
 			tmp_normal.normal_z = plane_parameters[2];
@@ -242,10 +246,10 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 			features.push_back({
 				indices.size(),
 				sum_square_error,
-				tmp_ang_from_g_est,
+				tmp_ang_from_g_local,
 				FACTOR_1*indices.size()
 				+ FACTOR_2*(1/sum_square_error)
-				+ FACTOR_3*(1/fabs(M_PI/2.0 - tmp_ang_from_g_est)),
+				+ FACTOR_3*(1/fabs(M_PI/2.0 - tmp_ang_from_g_local)),
 				i,
 				1});
 			// std::cout << "features[features.size()-1].num_refpoints = " << features[features.size()-1].num_refpoints << std::endl;
@@ -463,7 +467,7 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 			// std::cout << "   features[i].fitting_error = " << features[i].fitting_error << std::endl;
 			std::cout << "   1/features[i].fitting_error = " << 1/features[i].fitting_error << std::endl;
 			// std::cout << "   features[i].ang_from_g_est = " << features[i].ang_from_g_est << std::endl;
-			std::cout << "   1/fabs(M_PI/2.0 - features[i].ang_from_g_est) = " << 1/fabs(M_PI/2.0 - features[i].ang_from_g_est) << std::endl;
+			std::cout << "   1/fabs(M_PI/2.0 - features[i].ang_from_g_local) = " << 1/fabs(M_PI/2.0 - features[i].ang_from_g_local) << std::endl;
 			std::cout << "   features[i].num_groups = " << features[i].num_groups << std::endl;
 			std::cout << "   features[i].weight = " << features[i].weight << std::endl;
 			std::cout << "   pointIdxNKNSearch[1] = " << pointNKNSquaredDistance[1] << std::endl;
@@ -519,7 +523,7 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 		
 		features[shortest_dist_index].num_refpoints += features[features[shortest_dist_index].neighbor_index].num_refpoints;
 		features[shortest_dist_index].fitting_error = (features[shortest_dist_index].fitting_error + features[features[shortest_dist_index].neighbor_index].fitting_error)/2.0;
-		features[shortest_dist_index].ang_from_g_est = angle_between_vectors(merged_n, g_est);
+		features[shortest_dist_index].ang_from_g_local = angle_between_vectors(merged_n, g_local);
 		features[shortest_dist_index].num_groups += features[features[shortest_dist_index].neighbor_index].num_groups;
 		
 		// const std::vector<float> features_parameters = {1.0, 1.0, 10.0, 1.0};
@@ -538,12 +542,12 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 		features[shortest_dist_index].weight = 
 			FACTOR_1*features[shortest_dist_index].num_refpoints
 			+ FACTOR_2*(1/features[shortest_dist_index].fitting_error)
-			+ FACTOR_3*(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est))
+			+ FACTOR_3*(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_local))
 			+ FACTOR_4*features[shortest_dist_index].num_groups;
 		
 		std::cout << "features[shortest_dist_index].num_refpoints = " << features[shortest_dist_index].num_refpoints << std::endl;
 		std::cout << "(1/features[shortest_dist_index].fitting_error) = " << (1/features[shortest_dist_index].fitting_error) << std::endl;
-		std::cout << "(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est)) = " << (1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_est)) << std::endl;
+		std::cout << "(1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_local)) = " << (1/fabs(M_PI/2.0 - features[shortest_dist_index].ang_from_g_local)) << std::endl;
 		std::cout << "features[shortest_dist_index].num_groups = " << features[shortest_dist_index].num_groups << std::endl;
 
 
@@ -590,6 +594,52 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 	}
 }
 
+Eigen::MatrixXd rotation(geometry_msgs::Quaternion q,  Eigen::MatrixXd X, bool from_local_to_global)
+{   
+	if(!from_local_to_global) q.w *= -1;
+	Eigen::MatrixXd Rot(3, 3);
+	Rot <<	q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,	2*(q.x*q.y - q.w*q.z),	2*(q.x*q.z +  q.w*q.y),
+			2*(q.x*q.y + q.w*q.z),	q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,	2*(q.y*q.z -  q.w*q.x),
+			2*(q.x*q.z - q.w*q.y),	2*(q.y*q.z + q.w*q.x),	q.w*q.w - q.x*q.x - q.y*q.y  + q.z*q.z;
+
+	// std::cout << "Rot*X = " << std::endl << Rot*X << std::endl;
+	return	Rot*X;
+}
+
+// Eigen::MatrixXd rotation(geometry_msgs::Quaternion q, Eigen::MatrixXd X, bool from_local_to_global)
+// {
+// 	double roll, pitch, yaw;
+// 	tf::Quaternion tmp_q(q.x, q.y, q.z, q.w);
+// 	tf::Matrix3x3(tmp_q).getRPY(roll, pitch, yaw);
+//
+// 	Eigen::MatrixXd Rot(3, 3);
+// 	Rot <<  cos(pitch)*cos(yaw),
+// 				sin(roll)*sin(pitch)*cos(yaw) - cos(roll)*sin(yaw),
+// 					cos(roll)*sin(pitch)*cos(yaw) + sin(roll)*sin(yaw),
+// 			cos(pitch)*sin(yaw),
+// 				sin(roll)*sin(pitch)*sin(yaw) + cos(roll)*cos(yaw),
+// 					cos(roll)*sin(pitch)*sin(yaw) - sin(roll)*cos(yaw),
+// 			-sin(pitch),
+// 				sin(roll)*cos(pitch),
+// 					cos(roll)*cos(pitch);
+//
+// 	if(from_local_to_global)	return Rot*X;
+// 	else	return Rot.transpose()*X;
+// }
+
+void callback_pose(const geometry_msgs::PoseConstPtr& msg)
+{
+	Eigen::MatrixXd G_global(3, 1);
+	G_global <<	0.0,
+			 	0.0,
+				-9.80665;
+	Eigen::MatrixXd G_local(3, 1);
+	G_local = rotation(msg->orientation, G_global, false);
+	g_local = {G_local(0, 0), G_local(1, 0), G_local(2, 0)};
+	// std::cout << "G_local = " << std::endl << G_local << std::endl;
+	g_local_is_available = true;
+}
+
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "pc_normal");
@@ -612,6 +662,7 @@ int main(int argc, char** argv)
 	local_nh.getParam("FACTOR_4", FACTOR_4);
 
 	/*sub & pub*/
+	ros::Subscriber sub_pose = nh.subscribe("/pose_estimation_", 1, callback_pose);
 	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
@@ -665,7 +716,7 @@ int main(int argc, char** argv)
 		// viewer.addPointCloud(cloud, "cloud");
 		
 
-		if(!cloud->points.empty()){
+		if(!cloud->points.empty()&&g_local_is_available){
 			/*-----clouds------*/
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZINormal>);
 			pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere (new pcl::PointCloud<pcl::PointXYZ>);

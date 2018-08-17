@@ -17,7 +17,7 @@ struct IMUDATA{
 	double az;
 };
 
-geometry_msgs::Quaternion initial_pose;
+// geometry_msgs::Quaternion initial_pose;
 sensor_msgs::Imu imu;
 sensor_msgs::Imu imu_last;
 nav_msgs::Odometry odom;
@@ -31,9 +31,31 @@ ros::Time last_time;
 beginner_tutorials::imudata bias;
 FILE* fp;
 
-void rotation(geometry_msgs::Quaternion q,	Eigen::MatrixXf& X, bool inverse)
+// void rotation_(geometry_msgs::Quaternion q, Eigen::MatrixXf X, bool from_local_to_global)
+// {
+// 	double roll, pitch, yaw;
+// 	tf::Quaternion tmp_q(q.x, q.y, q.z, q.w);
+// 	tf::Matrix3x3(tmp_q).getRPY(roll, pitch, yaw);
+// 	Eigen::MatrixXf Rot(3, 3);
+// 	Rot <<  cos(pitch)*cos(yaw),
+// 				sin(roll)*sin(pitch)*cos(yaw) - cos(roll)*sin(yaw),
+// 					cos(roll)*sin(pitch)*cos(yaw) + sin(roll)*sin(yaw),
+// 			cos(pitch)*sin(yaw),
+// 				sin(roll)*sin(pitch)*sin(yaw) + cos(roll)*cos(yaw),
+// 					cos(roll)*sin(pitch)*sin(yaw) - sin(roll)*cos(yaw),
+// 			-sin(pitch),
+// 				sin(roll)*cos(pitch),
+// 					cos(roll)*cos(pitch);
+//
+// 	// if(from_local_to_global)	return Rot*X;
+// 	// else	return	Rot.transpose()*X;
+// 	if(from_local_to_global)	std::cout << "Rot*X = " << std::endl << Rot*X << std::endl;
+// 	else	std::cout << "Rot.transpose()*X = " << std::endl << Rot.transpose()*X << std::endl;
+// }
+
+void rotation(geometry_msgs::Quaternion q,	Eigen::MatrixXf& X, bool from_local_to_global)
 {
-	if(inverse)	q.w *= -1;
+	if(!from_local_to_global)	q.w *= -1;
 	Eigen::MatrixXf R(3, 3);
 	R <<	q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,	2*(q.x*q.y - q.w*q.z),	2*(q.x*q.z + q.w*q.y),
 			2*(q.x*q.y + q.w*q.z),	q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,	2*(q.y*q.z - q.w*q.x),
@@ -142,6 +164,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 				0.0,
 				-9.80665;
 		std::cout << "Acc_before = " << std::endl << Acc << std::endl;
+		// rotation_(odom.pose.pose.orientation, Acc, false);
 		rotation(odom.pose.pose.orientation, Acc, true);
 		V = V + (Acc - G)*dt;
 		// V = V + (Rot.inverse()*Acc - G)*dt;
@@ -185,16 +208,17 @@ void callback_bias(const beginner_tutorials::imudataConstPtr& msg)
 
 void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
 {
+	// std::cout << "CALLBACK INIPOSE" << std::endl;
 	// initial_pose = *msg;
 	if(!inipose_is_available){
-		initial_pose = *msg;
+		// initial_pose = *msg;
 
 		odom.header.frame_id = PARENT_FRAME;
 		odom.child_frame_id = "/imu_";
 		odom.pose.pose.position.x = 0.0;
 		odom.pose.pose.position.y = 0.0;
 		odom.pose.pose.position.z = 0.0;
-		odom.pose.pose.orientation = initial_pose;
+		odom.pose.pose.orientation = *msg;
 		// odom.pose.pose.orientation = imu.orientation;	//(仮)
 		// odom.pose.pose.orientation.x = 0.0;	//(仮)
 		// odom.pose.pose.orientation.y = 0.0;	//(仮)

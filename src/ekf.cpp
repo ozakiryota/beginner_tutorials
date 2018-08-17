@@ -197,7 +197,7 @@ int main(int argc, char**argv)
 	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 1, callback_inipose);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
 	ros::Subscriber sub_obs = nh.subscribe("/g_usingwalls", 10, callback_observation_usingwalls);
-	ros::Publisher pub_pose = nh.advertise<geometry_msgs::Pose>("/pose_estimation", 1);
+	ros::Publisher pub_pose = nh.advertise<geometry_msgs::Pose>("/pose_estimation_", 1);
 
 	X = Eigen::MatrixXd::Constant(6, 1, 0.0);
 	P = 100.0*Eigen::MatrixXd::Identity(6, 6);
