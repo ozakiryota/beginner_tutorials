@@ -155,7 +155,7 @@ void observation(void)
 
 	// std::cout << "Acc = " << std::endl << Acc << std::endl;
 	// std::cout << "H = " << std::endl << H << std::endl;
-	std::cout << "Y = " << std::endl << Y << std::endl;
+	// std::cout << "Y = " << std::endl << Y << std::endl;
 	// std::cout << "S = " << std::endl << S << std::endl;
 	// std::cout << "S.inverse() = " << std::endl << S.inverse() << std::endl;
 	// std::cout << "K = " << std::endl << K << std::endl;
@@ -186,7 +186,7 @@ void prediction(void)
 	Eigen::MatrixXd F(12, 1);
 	F <<	atan2(ay, az),
 			atan2(-ax, sqrt(ay*ay + az*az)),
-			0.0,	//yaw,	// -atan2(wy, wx),
+			M_PI/2.4,	//yaw,	// -atan2(wy, wx),
 			ave.ax,	//imu.linear_acceleration.x,
 			ave.ay,	//imu.linear_acceleration.y,
 			ave.az,	//imu.linear_acceleration.z,

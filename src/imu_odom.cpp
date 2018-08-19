@@ -164,7 +164,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 				0.0,
 				-9.80665;
 		std::cout << "Acc_before = " << std::endl << Acc << std::endl;
-		// rotation_(odom.pose.pose.orientation, Acc, false);
+		// rotation_(odom.pose.pose.orientation, Acc, true);
 		rotation(odom.pose.pose.orientation, Acc, true);
 		V = V + (Acc - G)*dt;
 		// V = V + (Rot.inverse()*Acc - G)*dt;

@@ -47,7 +47,7 @@ float FACTOR_4;
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
-	// std::cout << "cloud_callback" << std::endl;
+	std::cout << "-----CLOUD CALLBACK-----" << std::endl;
 	// tm = msg->header.stamp;
 	pcl::fromROSMsg(*msg, *cloud);
 	// std::cout << "msg->data.size() = " << msg->data.size() << std::endl;
@@ -145,7 +145,7 @@ float angle_between_vectors(std::vector<float> v1, std::vector<float> v2)
 
 // void plane_fitting(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, pcl::PointCloud<pcl::PointXYZ>::Ptr planecloud, std::vector<float>& fitting_errors)
 // void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<float>& fitting_errors, std::vector<int>& num_refpoints)
-void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<FEATURES>& features)
+void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals_flipped, std::vector<FEATURES>& features)
 {
 	std::cout << "-----PLANE FITTING-----" <<  std::endl;
 	// const float radius = 0.5;
@@ -236,7 +236,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 			tmp_normal.x = cloud->points[i].x;
 			tmp_normal.y = cloud->points[i].y;
 			tmp_normal.z = cloud->points[i].z;
-			// flipNormalTowardsViewpoint (tmp_normal, 0.0, 0.0, 1.0, plane_parameters);
+			// flipNormalTowardsViewpoint(tmp_normal, 0.0, 0.0, 1.0, plane_parameters);
 			tmp_normal.normal_x = plane_parameters[0];
 			tmp_normal.normal_y = plane_parameters[1];
 			tmp_normal.normal_z = plane_parameters[2];
@@ -252,6 +252,13 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vect
 				+ FACTOR_3*(1/fabs(M_PI/2.0 - tmp_ang_from_g_local)),
 				i,
 				1});
+
+			/*just for viewing*/
+			flipNormalTowardsViewpoint(tmp_normal, 0.0, 0.0, 1.0, plane_parameters);
+			tmp_normal.normal_x = plane_parameters[0];
+			tmp_normal.normal_y = plane_parameters[1];
+			tmp_normal.normal_z = plane_parameters[2];
+			normals_flipped->points.push_back(tmp_normal);
 			// std::cout << "features[features.size()-1].num_refpoints = " << features[features.size()-1].num_refpoints << std::endl;
 			// num_normals++;
 		}
@@ -719,6 +726,7 @@ int main(int argc, char** argv)
 		if(!cloud->points.empty()&&g_local_is_available){
 			/*-----clouds------*/
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZINormal>);
+			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals_flipped (new pcl::PointCloud<pcl::PointXYZINormal>);	//just for viewing
 			pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere (new pcl::PointCloud<pcl::PointXYZ>);
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr main_normals (new pcl::PointCloud<pcl::PointXYZINormal>);
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointXYZINormal>);
@@ -732,7 +740,7 @@ int main(int argc, char** argv)
 			// std::vector<int> num_refpoints;
 			std::vector<FEATURES> features;
 			// plane_fitting(normals, fitting_errors, num_refpoints);
-			plane_fitting(normals, features);
+			plane_fitting(normals, normals_flipped, features);
 			normals_to_points(normals, normal_sphere);
 			points_to_normals(normal_sphere, normals_before_clustering);
 			clustering(normals, features, normal_sphere);
@@ -773,7 +781,8 @@ int main(int argc, char** argv)
 			viewer.addPointCloud(cloud, "cloud");
 			
 			viewer.removePointCloud("normals");
-			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals, 1, 0.2, "normals");
+			// viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals, 1, 0.2, "normals");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals_flipped, 1, 0.2, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals");
 			

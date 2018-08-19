@@ -30,7 +30,7 @@
 	<node pkg="beginner_tutorials" name="ekf" type="ekf" output="screen"/>
 
 	<node pkg="beginner_tutorials" name="tf_from_posemsg" type="tf_from_posemsg">
-		<param name="SUB_MSG" value="/pose_estimation"/>
+		<param name="SUB_MSG" value="/pose_estimation_"/>
 		<param name="PARENT_FRAME" value="/odom"/>
 		<param name="CHILD_FRAME" value="/pose_estimation_"/>
 	</node>
