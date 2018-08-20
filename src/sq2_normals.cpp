@@ -105,6 +105,7 @@ bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::P
 		std::cout << "normal_sphere has just one normal" << std::endl;
 		create_another_normal(normal_sphere);
 	}
+	else	std::cout << "normal_sphere has more than 2 normals" << std::endl;
 
 	/*the center of Gauss Sphere*/
 	g_vector->points[0].x = 0;
