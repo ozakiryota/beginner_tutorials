@@ -55,7 +55,7 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 		count++;
 		std::cout << "CALLBACK OBSERVATION USINGWALLS" << std::endl;
 		
-		pcl::PointCloud<pcl::PointXYZINormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointXYZINormal>);
+		pcl::PointCloud<pcl::PointNormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointNormal>);
 		pcl::fromROSMsg(*msg, *g_vector);
 
 		const float g = -9.80665;
