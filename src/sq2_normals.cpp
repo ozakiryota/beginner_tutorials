@@ -71,18 +71,9 @@ void points_to_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr points, pcl::PointClo
 	}
 }
 
-// pcl::PointXYZ cross_product(pcl::PointXYZ v1, pcl::PointXYZ v2)
-// {
-// 	float x = v1.y*v2.z - v1.z*v2.y;
-// 	float y = v1.z*v2.x - v1.x*v2.z;
-// 	float x = v1.x*v2.y - v1.y*v2.x;
-// 	float norm = sqrt(x*x + y*y + z*z);
-// 	
-// 	pcl::PointXYZ output;
-// 	output.
-// }
-
-void create_another_normal(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere){
+void create_another_normal(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere)
+{
+	std::cout << "---CREATE ANOTHER NORMAL---" << std::endl;
 	float another_n_x = normal_sphere->points[0].y*g_local[2]
 						-normal_sphere->points[0].z*g_local[1];
 	float another_n_y = normal_sphere->points[0].z*g_local[0]
@@ -457,54 +448,11 @@ int main(int argc, char** argv)
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
 	ros::Publisher g_pub = nh.advertise<sensor_msgs::PointCloud2>("/g_usingwalls",1);
 
-	// const int num_points = 10000;
-	// pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-	// pcl::io::loadPCDFile ("/home/amsl/ros_catkin_ws/src/beginner_tutorials/map_0.pcd", *cloud);
-	// int num_points = cloud->points.size();
-	// cloud->points.resize(num_points);
-	// pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZINormal>);
-	// normals->points.resize(cloud->points.size());
-	// randomize_cloud(cloud, num_points);
-	// print_cloud(cloud, cloud->points.size());
-	// pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-	// normals->points.resize(cloud->points.size());
-	// estimate_normal(cloud, normals);
+	pcl::visualization::PCLVisualizer viewer("Point Cloud Viewer");
+	viewer.setBackgroundColor(1, 1, 1);
 
-	// Eigen::Vector4f plane_parameters;
-	// std::vector<float> fitting_errors;
-	// plane_fitting(cloud, normals, planecloud, fitting_errors);
-	// plane_fitting(normals, fitting_errors);
-	// randomize_normals(normals, 100);
-	
-	// pcl::PointCloud<pcl::PointXYZ>::Ptr g_point (new pcl::PointCloud<pcl::PointXYZ>);
-	// g_point->points.resize(1);
-	// pcl::PointCloud<pcl::Normal>::Ptr g_vector (new pcl::PointCloud<pcl::Normal>);
-	// g_vector->points.resize(1);
-	// estimate_g_vector(normals, g_point, g_vector);
-
-	pcl::visualization::PCLVisualizer viewer("Test Point Cloud Viewer");
-	// viewer.addPointCloud(cloud, "cloud");
-	// viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(planecloud, normals, 1, 0.5, "normals");
-	// viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals"); 
-	// viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals"); 
-	//
-	// viewer.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(g_point, g_vector, 1, 0.5, "g");
-	// viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "g");
-	// viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g"); 
-
-	// boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Normals"));
-	// viewer->addPointCloud<pcl::PointXYZ>(cloud, "cloud");
-	// viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(cloud, normals, 5, 0.3, "normals");
-
-	// viewer.addPointCloud(cloud, "cloud");
-	// std::cout << "TEST" << std::endl;
-	ros::Rate loop_rate(LOOP_RATE);
+	// ros::Rate loop_rate(LOOP_RATE);
 	while(ros::ok()){
-		viewer.spinOnce();
-		// viewer.removePointCloud("cloud");
-		// viewer.addPointCloud(cloud, "cloud");
-		
-
 		if(!cloud->points.empty()&&g_local_is_available){
 			/*-----clouds------*/
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals (new pcl::PointCloud<pcl::PointXYZINormal>);
@@ -518,10 +466,7 @@ int main(int argc, char** argv)
 
 
 			/*-----compute-----*/
-			// std::vector<float> fitting_errors;
-			// std::vector<int> num_refpoints;
 			std::vector<FEATURES> features;
-			// plane_fitting(normals, fitting_errors, num_refpoints);
 			plane_fitting(normals, normals_flipped, features);
 			normals_to_points(normals, normal_sphere);
 			points_to_normals(normal_sphere, normals_before_clustering);
@@ -532,10 +477,6 @@ int main(int argc, char** argv)
 				std::cout << "FALSE" << std::endl;
 				// exit(1);
 			}
-			// if(g_vector->points[0].normal_z>-0.6){
-			// 	std::cout << "WEIRED ESTIMATION" << std::endl;
-			// 	exit(1);
-			// }
 			
 			/*-----publish-----*/
 			sensor_msgs::PointCloud2 roscloud_out;
@@ -560,16 +501,16 @@ int main(int argc, char** argv)
 
 			/*-----pcl viewer-----*/
 			viewer.removePointCloud("cloud");
-			viewer.addPointCloud(cloud, "cloud");
-			
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> cloud_color (cloud, 0, 0, 0);
+			viewer.addPointCloud(cloud, cloud_color , "cloud");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
+
 			viewer.removePointCloud("normals");
-			// viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals, 1, 0.2, "normals");
 			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals_flipped, 1, 0.2, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals");
 			
 			viewer.removePointCloud("g");
-			// viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(g_vector, g_vector, 1, 0.5, "g");
 			viewer.addPointCloudNormals<pcl::PointNormal>(g_vector, 1, 0.2, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 1.0, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g");
@@ -583,15 +524,9 @@ int main(int argc, char** argv)
 			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_after_clustering, 1, 0.2, "normals_after_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "normals_after_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, "normals_after_clustering");
-
-			// if(g_vector->points[0].normal_z>-0.0){
-			// 	std::cout << "WEIRED ESTIMATION" << std::endl;
-			// 	while(1){}
-			// }
 		}
-		// viewer->spinOnce(100);
-		// boost::this_thread::sleep(boost::posix_time::microseconds(100000));
 		ros::spinOnce();
+		viewer.spinOnce();
 		// loop_rate.sleep();
 	}
 }
