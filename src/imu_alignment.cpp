@@ -19,8 +19,9 @@ beginner_tutorials::imudata bias;
 ros::Time current_time;
 ros::Time last_time;
 bool imu_is_moving = false;
-Eigen::MatrixXd X(12, 1);
-Eigen::MatrixXd P(12, 12);
+const int num_state = 12;
+Eigen::MatrixXd X(num_state, 1);
+Eigen::MatrixXd P(num_state, num_state);
 FILE* fp;
 
 void input_bias(void)
@@ -52,6 +53,8 @@ Eigen::MatrixXd rotation(Eigen::MatrixXd X, double roll, double pitch, double ya
 
 void observation(void)
 {
+	const int num_obs = 3;	
+
 	double ax = X(3, 0) - X(6, 0);
 	double ay = X(4, 0) - X(7, 0);
 	double az = X(5, 0) - X(8, 0);
@@ -75,7 +78,7 @@ void observation(void)
 					cos(roll)*cos(pitch);
 	
 	const double g = 9.80665;
-	Eigen::MatrixXd Z(3, 1);
+	Eigen::MatrixXd Z(num_obs, 1);
 	Z <<	0.0,
 			0.0,
 			g;
@@ -121,7 +124,7 @@ void observation(void)
 	double dh2dx7 = -dh2dx4;	
 	double dh2dx8 = -dh2dx5;
 
-	Eigen::MatrixXd jH(3, 12);
+	Eigen::MatrixXd jH(num_obs, num_state);
 	jH <<	dh0dx0,	dh0dx1,	dh0dx2,	dh0dx3,	dh0dx4,	dh0dx5,	dh0dx6,	dh0dx7,	dh0dx8,	0.0,	0.0,	0.0,
 			dh1dx0,	dh1dx1,	dh1dx2,	dh1dx3,	dh1dx4,	dh1dx5,	dh1dx6,	dh1dx7,	dh1dx8,	0.0,	0.0,	0.0,
 			dh2dx0,	dh2dx1,	dh2dx2,	dh2dx3,	dh2dx4,	dh2dx5,	dh2dx6,	dh2dx7,	dh2dx8,	0.0,	0.0,	0.0;
@@ -131,18 +134,18 @@ void observation(void)
 	const double sigma = 1.0e-3;
 	std::normal_distribution<double> dist(0.0, sigma);
 	// std::cout << "obs_dist(engine) = " << dist(engine) << std::endl;
-	Eigen::MatrixXd R(3, 3);
-	Eigen::MatrixXd I3 = Eigen::MatrixXd::Identity(3, 3);
+	Eigen::MatrixXd R(num_obs, num_obs);
+	Eigen::MatrixXd I3 = Eigen::MatrixXd::Identity(num_obs, num_obs);
 	R = sigma*I3;
 	R <<	1.0e-9,	1.0e-9,	1.0e-5,
 	  		1.0e-9,	1.0e-9,	1.0e-5,
 			1.0e-5,	1.0e-5,	1.0e-3;
 	// R = Eigen::MatrixXd::Constant(3, 3, sigma);
-	Eigen::MatrixXd H(3, 1);
-	Eigen::MatrixXd Y(3, 1);
-	Eigen::MatrixXd S(3, 3);
-	Eigen::MatrixXd K(12, 3);
-	Eigen::MatrixXd I12 = Eigen::MatrixXd::Identity(12, 12);
+	Eigen::MatrixXd H(num_obs, 1);
+	Eigen::MatrixXd Y(num_obs, 1);
+	Eigen::MatrixXd S(num_obs, num_obs);
+	Eigen::MatrixXd K(num_state, num_obs);
+	Eigen::MatrixXd I12 = Eigen::MatrixXd::Identity(num_state, num_state);
 	
 
 	// Z = Rot*G;
@@ -183,7 +186,7 @@ void prediction(void)
 	tf::Quaternion tmp_q(imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w);
 	tf::Matrix3x3(tmp_q).getRPY(roll, pitch, yaw);
 
-	Eigen::MatrixXd F(12, 1);
+	Eigen::MatrixXd F(num_state, 1);
 	F <<	atan2(ay, az),
 			atan2(-ax, sqrt(ay*ay + az*az)),
 			M_PI/2.4,	//yaw,	// -atan2(wy, wx),
@@ -207,7 +210,7 @@ void prediction(void)
 	double dydwx = -1.0/(1.0 + (wy/wx)*(wy/wx))*(-wy/(wx*wx));
 	double dydwy = -1.0/(1.0 + (wy/wx)*(wy/wx))*(1.0/wx);
 
-	Eigen::MatrixXd jF(12, 12);
+	Eigen::MatrixXd jF(num_state, num_state);
 	jF <<	1.0,	0.0,	0.0,	0.0,	drday,	drdaz,	0.0,	-drday,	-drdaz,	0.0,	0.0,	0.0,
 			0.0,	1.0,	0.0,	dpdax,	dpday,	dpdaz,	-dpdax,	-dpday,	-dpdaz,	0.0,	0.0,	0.0,
 			0.0,	0.0,	1.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	dydwx,	dydwy,	0.0,
@@ -226,8 +229,8 @@ void prediction(void)
 	const double sigma = 1.0e-2;
 	std::normal_distribution<double> dist(0.0, sigma);
 	// std::cout << "pre_dist(engine) = " << dist(engine) << std::endl;
-	Eigen::MatrixXd Q(12, 12);
-	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(12, 12);
+	Eigen::MatrixXd Q(num_state, num_state);
+	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
 	Q = sigma*I;
 	// Q = Eigen::MatrixXd::Constant(12, 12, sigma);
 	// Q <<	3.0e-8,	4.0e-9,	-1.0e-7,	-4.0e-8,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,	0.0,
@@ -356,10 +359,10 @@ int main(int argc, char**argv)
 	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose", 1);
 	ros::Publisher pub_bias = nh.advertise<beginner_tutorials::imudata>("/imu_bias", 10);
 
-	X = Eigen::MatrixXd::Constant(12, 1, 0.0);
+	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
 	std::cout << "X = " << std::endl << X << std::endl;
 	
-	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(12, 12);
+	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
 	P = 100.0*I;
 	std::cout << "P = " << std::endl << P << std::endl;
 

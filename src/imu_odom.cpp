@@ -19,10 +19,11 @@
 
 // geometry_msgs::Quaternion initial_pose;
 sensor_msgs::Imu imu;
-sensor_msgs::Imu imu_last;
+// sensor_msgs::Imu imu_last;
 nav_msgs::Odometry odom;
 bool inipose_is_available = false;
-Eigen::MatrixXf V(3, 1);
+Eigen::MatrixXd V(3, 1);
+Eigen::MatrixXd Acc_local_last(3, 1);
 std::string PARENT_FRAME;
 ros::Time current_time;
 ros::Time last_time;
@@ -53,15 +54,16 @@ FILE* fp;
 // 	else	std::cout << "Rot.transpose()*X = " << std::endl << Rot.transpose()*X << std::endl;
 // }
 
-void rotation(geometry_msgs::Quaternion q,	Eigen::MatrixXf& X, bool from_local_to_global)
+Eigen::MatrixXd frame_rotation(geometry_msgs::Quaternion q, Eigen::MatrixXd X, bool from_global_to_local)
 {
-	if(!from_local_to_global)	q.w *= -1;
-	Eigen::MatrixXf R(3, 3);
-	R <<	q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,	2*(q.x*q.y - q.w*q.z),	2*(q.x*q.z + q.w*q.y),
-			2*(q.x*q.y + q.w*q.z),	q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,	2*(q.y*q.z - q.w*q.x),
-			2*(q.x*q.z - q.w*q.y),	2*(q.y*q.z + q.w*q.x),	q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z;
-	X = R*X;
+	// if(!from_global_to_local)	q.w *= -1;
+	Eigen::MatrixXd Rot(3, 3);
+	Rot <<	q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,	2*(q.x*q.y + q.w*q.z),	2*(q.x*q.z - q.w*q.y),
+			2*(q.x*q.y - q.w*q.z),	q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,	2*(q.y*q.z + q.w*q.x),
+			2*(q.x*q.z + q.w*q.y),	2*(q.y*q.z - q.w*q.x),	q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z;
 	// std::cout << "X = " << std::endl << X << std::endl;
+	if(from_global_to_local)	return Rot*X;
+	else	return Rot.inverse()*X;
 }
 
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
@@ -72,7 +74,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	current_time = ros::Time::now();
 	double dt = (current_time - last_time).toSec();
 	last_time = current_time;
-	// std::cout << "dt = " << dt << std::endl;
+	std::cout << "dt = " << dt << std::endl;
 	
 	// if(!inipose_is_available)	record.push_back({
 	// 								imu.angular_velocity.x,
@@ -82,7 +84,13 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	// 								imu.linear_acceleration.y,
 	// 								imu.linear_acceleration.z
 	// 							});
-
+	
+	Eigen::MatrixXd Acc_raw(3, 1);
+	Acc_raw <<	-imu.linear_acceleration.x,
+				-imu.linear_acceleration.y,
+				-imu.linear_acceleration.z;
+	if(!inipose_is_available)	Acc_local_last = Acc_raw;
+	
 	if(inipose_is_available){
 		// record.erase(record.begin());
 		// bias = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -113,7 +121,12 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		// tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
 		// fprintf(fp, "%f\t%f\t%f\n", roll, pitch, yaw);
 		
-		Eigen::MatrixXf Acc(3, 1);
+		Eigen::MatrixXd Acc_local(3, 1);
+		const double lowpass_ratio = 0.95;
+		Acc_local = lowpass_ratio*Acc_local_last + (1.0 - lowpass_ratio)*Acc_raw;
+		Acc_local_last = Acc_local;
+		
+		Eigen::MatrixXd Acc(3, 1);
 		Acc <<	-imu.linear_acceleration.x,
 				-imu.linear_acceleration.y,
 				-imu.linear_acceleration.z;
@@ -159,23 +172,26 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 
 		// std::cout << "R = " << std::endl << R << std::endl;
 		// std::cout << "R.inverse() = " << std::endl << R.inverse() << std::endl;
-		Eigen::MatrixXf G(3, 1);
+		Eigen::MatrixXd G(3, 1);
 		G <<	0.0,
 				0.0,
 				-9.80665;
-		std::cout << "Acc_before = " << std::endl << Acc << std::endl;
 		// rotation_(odom.pose.pose.orientation, Acc, true);
-		rotation(odom.pose.pose.orientation, Acc, true);
-		V = V + (Acc - G)*dt;
+		Eigen::MatrixXd Acc_global = frame_rotation(odom.pose.pose.orientation, Acc_local, false);
+		V = V + (Acc_global - G)*dt;
+		// V += (Acc-G)*dt;
 		// V = V + (Rot.inverse()*Acc - G)*dt;
-		std::cout << "Acc_after = " << std::endl << Acc << std::endl;
+		std::cout << "Acc_global = " << std::endl << Acc_global << std::endl;
 		std::cout << "V = " << std::endl << V << std::endl;
-		// odom.twist.twist.linear.x = V(0, 0);
-		// odom.twist.twist.linear.y = V(1, 0);
-		// odom.twist.twist.linear.z = V(2, 0);
+		odom.twist.twist.linear.x = V(0, 0);
+		odom.twist.twist.linear.y = V(1, 0);
+		odom.twist.twist.linear.z = V(2, 0);
 		odom.pose.pose.position.x += V(0, 0)*dt;
 		odom.pose.pose.position.y += V(1, 0)*dt;
 		odom.pose.pose.position.z += V(2, 0)*dt;
+		
+		odom.twist.twist.linear.x = Acc_local_last(0, 0);
+
 		// odom.pose.pose.position.x += V(0, 0)*dt - bias.ax;
 		// odom.pose.pose.position.y += V(1, 0)*dt - bias.ay;
 		// odom.pose.pose.position.z += V(2, 0)*dt - bias.az;
@@ -196,7 +212,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		transform.transform.rotation = odom.pose.pose.orientation;
 		broadcaster.sendTransform(transform);
 	}
-	imu_last = imu;
+	// imu_last = imu;
 }
 
 void callback_bias(const beginner_tutorials::imudataConstPtr& msg)
@@ -315,7 +331,7 @@ int main(int argc, char** argv)
 
 	// ros::Rate loop_rate(10);
 	while(ros::ok()){
-		odom.header.stamp = ros::Time::now();
+		// odom.header.stamp = ros::Time::now();
 		if(inipose_is_available)	pub_odom.publish(odom);
 		ros::spinOnce();
 		// loop_rate.sleep();
