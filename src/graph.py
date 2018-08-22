@@ -20,7 +20,7 @@ def callback(msg):
 if __name__ == '__main__':
     rospy.init_node('graph', anonymous=True)
     rospy.Subscriber("/imu_odom", Odometry, callback)
-    
+
     while not rospy.is_shutdown():
         rospy.spin()
     plt.plot(x, y)
