@@ -7,6 +7,7 @@
 #include <Eigen/Core>
 #include <Eigen/LU>
 #include "beginner_tutorials/imudata.h"
+#include <std_msgs/Float64.h>
 
 // struct IMUDATA{
 // 	double wx;
@@ -31,6 +32,7 @@ ros::Time last_time;
 // IMUDATA bias_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 beginner_tutorials::imudata bias;
 FILE* fp;
+std_msgs::Float64 graph_y;
 
 // void rotation_(geometry_msgs::Quaternion q, Eigen::MatrixXf X, bool from_local_to_global)
 // {
@@ -74,7 +76,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	current_time = ros::Time::now();
 	double dt = (current_time - last_time).toSec();
 	last_time = current_time;
-	std::cout << "dt = " << dt << std::endl;
+	// std::cout << "dt = " << dt << std::endl;
 	
 	// if(!inipose_is_available)	record.push_back({
 	// 								imu.angular_velocity.x,
@@ -190,8 +192,6 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		odom.pose.pose.position.y += V(1, 0)*dt;
 		odom.pose.pose.position.z += V(2, 0)*dt;
 		
-		odom.twist.twist.linear.x = Acc_local_last(0, 0);
-
 		// odom.pose.pose.position.x += V(0, 0)*dt - bias.ax;
 		// odom.pose.pose.position.y += V(1, 0)*dt - bias.ay;
 		// odom.pose.pose.position.z += V(2, 0)*dt - bias.az;
@@ -211,6 +211,8 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		// transform.transform.translation.z = 0.0;
 		transform.transform.rotation = odom.pose.pose.orientation;
 		broadcaster.sendTransform(transform);
+	
+		graph_y.data = Acc_local(0, 0);
 	}
 	// imu_last = imu;
 }
@@ -320,6 +322,7 @@ int main(int argc, char** argv)
 	ros::Subscriber sub_bias = nh.subscribe("/imu_bias", 1, callback_bias);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1, callback_imu);
 	ros::Publisher pub_odom = nh.advertise<nav_msgs::Odometry>("/imu_odom", 1);
+	ros::Publisher pub_float = nh.advertise<std_msgs::Float64>("/graph_y", 10);
 
 	current_time = ros::Time::now();
 	last_time = ros::Time::now();
@@ -333,6 +336,7 @@ int main(int argc, char** argv)
 	while(ros::ok()){
 		// odom.header.stamp = ros::Time::now();
 		if(inipose_is_available)	pub_odom.publish(odom);
+		// pub_float.publish(graph_y);
 		ros::spinOnce();
 		// loop_rate.sleep();
 	}

@@ -10,6 +10,7 @@
 #include <tf/tf.h>
 #include "beginner_tutorials/imudata.h"
 #include <random>
+#include <std_msgs/Float64.h>
 
 sensor_msgs::Imu imu;
 geometry_msgs::Quaternion initial_pose;
@@ -19,10 +20,12 @@ beginner_tutorials::imudata bias;
 // ros::Time current_time;
 // ros::Time last_time;
 bool imu_is_moving = false;
+bool inipose_is_available = false;
 const int num_state = 3;
 Eigen::MatrixXd X(num_state, 1);
 Eigen::MatrixXd P(num_state, num_state);
-FILE* fp;
+// FILE* fp;
+std_msgs::Float64 graph_y;
 
 // void input_bias(void)
 // {
@@ -37,7 +40,7 @@ void input_initialpose(void)
 	std::cout << "INPUT INITIALPOSE" << std::endl;
 	tf::Quaternion q = tf::createQuaternionFromRPY(X(0, 0), X(1, 0), X(2, 0));
 	quaternionTFToMsg(q, initial_pose);
-
+	inipose_is_available = true;
 	// initial_pose = imu.orientation;
 }
 
@@ -158,7 +161,7 @@ void observation_(void)
 	X = X + K*Y;
 	P = (I - K*jH)*P;
 
-	std::cout << "H = " << std::endl << H << std::endl;
+	// std::cout << "H = " << std::endl << H << std::endl;
 	// std::cout << "jH = " << std::endl << jH << std::endl;
 	// std::cout << "Y = " << std::endl << Y << std::endl;
 	// std::cout << "S = " << std::endl << S << std::endl;
@@ -171,6 +174,9 @@ void observation_(void)
 	
 	// fprintf(fp, "%f\t%f\t%f\n", Y(0, 0), Y(1, 0), Y(2, 0));
 	// fprintf(fp, "%f\t%f\t%f\n", imu.linear_acceleration.x, imu.linear_acceleration.y, imu.linear_acceleration.z);
+	
+
+	// graph_y.data = P(0, 0);
 }
 
 void observation(void)
@@ -214,7 +220,10 @@ void observation(void)
 	P = (I - K*jH)*P;
 
 	// std::cout << "K*Y = " << std::endl << K*Y << std::endl;
-	std::cout << "X = " << std::endl << X << std::endl;
+	
+	
+	// graph_y.data = X(0, 0);
+	graph_y.data = X(0, 0);
 }
 	
 void prediction(void)
@@ -227,7 +236,7 @@ void prediction(void)
 	std::mt19937 engine(rnd());
 	const double sigma = 1.0e-3;
 	std::normal_distribution<double> dist(0.0, sigma);
-	std::cout << "pre_dist(engine) = " << dist(engine) << std::endl;
+	// std::cout << "pre_dist(engine) = " << dist(engine) << std::endl;
 	Eigen::MatrixXd Q = sigma*Eigen::MatrixXd::Identity(num_state, num_state);
 
 	F = A*X;
@@ -240,7 +249,7 @@ void prediction(void)
 bool judge_moving(void)
 {
 	const float threshold_w = 0.03;
-	const float threshold_a = 0.02;
+	const float threshold_a = 0.05;
 	if(fabs(record[record.size()-1].wx - ave.wx)>threshold_w){
 		std::cout << "Moved-wx" << std::endl;
 		return true;
@@ -287,6 +296,7 @@ void calculate_average(void)
 	}
 }
 
+Eigen::MatrixXd Acc_last(3, 1);
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 {
 	// std::cout << "imu_callback" << std::endl;
@@ -296,6 +306,16 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	// double dt = (current_time - last_time).toSec();
 	// last_time = current_time;
 	
+	Eigen::MatrixXd Acc_raw(3, 1);
+	Acc_raw <<	imu.angular_velocity.x,
+				imu.angular_velocity.y,
+				imu.angular_velocity.z;
+	if(record.size()==0)	Acc_last = Acc_raw;
+	const double lowpass_ratio = 0.95;
+	Eigen::MatrixXd Acc(3, 1);
+	Acc = lowpass_ratio*Acc + (1.0 - lowpass_ratio)*Acc_raw;
+	Acc_last = Acc;
+
 	beginner_tutorials::imudata tmp;
 	tmp.wx = imu.angular_velocity.x;
 	tmp.wy = imu.angular_velocity.y;
@@ -306,20 +326,24 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	record.push_back(tmp);
 	
 	calculate_average();
-	const size_t record_size = 100;
+	const size_t record_size = 1000;
 	if(record.size()>record_size){
 		record.erase(record.begin());
 		//calculate_average();
 		imu_is_moving = judge_moving();
 		if(!imu_is_moving){
 			prediction();
-			observation_();
+			observation();
 		}
 	}
 	// if(record.size()==record_size&&!imu_is_moving){
 	//	prediction();
 	//	observation();
 	// }
+	
+	
+	// graph_y.data = imu.linear_acceleration.x;
+	// graph_y.data = Acc(0, 0);
 }
 
 int main(int argc, char**argv)
@@ -332,7 +356,8 @@ int main(int argc, char**argv)
 
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
 	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose", 1);
-	ros::Publisher pub_bias = nh.advertise<beginner_tutorials::imudata>("/imu_bias", 1);
+	// ros::Publisher pub_bias = nh.advertise<beginner_tutorials::imudata>("/imu_bias", 1);
+	ros::Publisher pub_float = nh.advertise<std_msgs::Float64>("/graph_y", 10);
 
 	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
 	// X(2, 0) = M_PI/2.4;
@@ -341,23 +366,43 @@ int main(int argc, char**argv)
 	P = 100.0*Eigen::MatrixXd::Identity(num_state, num_state);
 	std::cout << "P = " << std::endl << P << std::endl;
 
-	fp = fopen("/home/amsl/Desktop/imu_alignment.csv", "w");
+	// fp = fopen("/home/amsl/Desktop/imu_alignment.csv", "w");
+
+	// int i = 0;
+	// while(ros::ok()&&!imu_is_moving){
+	// 	ros::spinOnce();
+	// 	pub_float.publish(graph_y);
+	// 	i++;
+	// 	if(i>2.0e+6)	break;
+	// }
+	//
+	// fclose(fp);
+	// input_initialpose();
+	// // input_bias();
+	//
+	// ros::Rate loop_rate(10);
+	// while(ros::ok()){
+	// 	if(inipose_is_available)	pub_inipose.publish(initial_pose);
+	// 	// pub_bias.publish(bias);
+	// 	loop_rate.sleep();
+	// }
 
 	int i = 0;
-	while(ros::ok()&&!imu_is_moving){
-		ros::spinOnce();
-		i++;
-		if(i>1e+8)	break;
-	}
-	
-	fclose(fp);
-	input_initialpose();
-	// input_bias();
-	
 	ros::Rate loop_rate(10);
-	while(ros::ok()){
-		pub_inipose.publish(initial_pose);
-		pub_bias.publish(bias);
-		loop_rate.sleep();
+	while(ros::ok())
+	{
+		if(!inipose_is_available){
+			ros::spinOnce();
+			if(record.size()==1000){
+				i++;
+				// if(i>100000)	input_initialpose();
+				if(imu_is_moving)   input_initialpose();
+				pub_float.publish(graph_y);
+			}
+		}
+		else{
+			pub_inipose.publish(initial_pose);
+			loop_rate.sleep();
+		}
 	}
 }

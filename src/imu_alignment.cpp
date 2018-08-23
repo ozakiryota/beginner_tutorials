@@ -10,6 +10,7 @@
 #include <tf/tf.h>
 #include "beginner_tutorials/imudata.h"
 #include <random>
+#include <std_msgs/Float64.h>
 
 sensor_msgs::Imu imu;
 geometry_msgs::Quaternion initial_pose;
@@ -23,6 +24,7 @@ const int num_state = 12;
 Eigen::MatrixXd X(num_state, 1);
 Eigen::MatrixXd P(num_state, num_state);
 FILE* fp;
+std_msgs::Float64 graph_y;
 
 void input_bias(void)
 {
@@ -167,6 +169,7 @@ void observation(void)
 	
 	// fprintf(fp, "%f\t%f\t%f\n", Y(0, 0), Y(1, 0), Y(2, 0));
 	// fprintf(fp, "%f\t%f\t%f\n", imu.linear_acceleration.x, imu.linear_acceleration.y, imu.linear_acceleration.z);
+	graph_y.data = Y(0, 0);
 }
 
 void prediction(void)
@@ -358,6 +361,7 @@ int main(int argc, char**argv)
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
 	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose", 1);
 	ros::Publisher pub_bias = nh.advertise<beginner_tutorials::imudata>("/imu_bias", 10);
+	ros::Publisher pub_float = nh.advertise<std_msgs::Float64>("/graph_y", 10);
 
 	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
 	std::cout << "X = " << std::endl << X << std::endl;
@@ -370,6 +374,7 @@ int main(int argc, char**argv)
 
 	while(ros::ok()&&!imu_is_moving){
 		ros::spinOnce();
+		pub_float.publish(graph_y);
 	}
 	
 	fclose(fp);
