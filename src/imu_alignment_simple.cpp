@@ -181,7 +181,7 @@ void observation_(void)
 
 void observation(void)
 {
-	const int num_obs = 2;	
+	const int num_obs = 3;	
 
 	double ax = ave.ax;
 	double ay = ave.ay;
@@ -192,15 +192,18 @@ void observation(void)
 	
 	Eigen::MatrixXd Z(num_obs, 1);
 	Z <<	atan2(ay, az),
-			atan2(-ax, sqrt(ay*ay + az*az));
+			atan2(-ax, sqrt(ay*ay + az*az)),
+			yaw;
 
 	Eigen::MatrixXd H(num_obs, num_state);
 	H <<	1,	0,	0,
-	  		0,	1,	0;
+	  		0,	1,	0,
+			0,	0,	1;
 
 	Eigen::MatrixXd jH(num_obs, num_state);
 	jH <<	1,	0,	0,
-	  		0,	1,	0;
+	  		0,	1,	0,
+			0,	0,	1;
 
 	std::random_device rnd;
 	std::mt19937 engine(rnd());

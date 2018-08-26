@@ -192,7 +192,7 @@ void prediction(void)
 	Eigen::MatrixXd F(num_state, 1);
 	F <<	atan2(ay, az),
 			atan2(-ax, sqrt(ay*ay + az*az)),
-			M_PI/2.4,	//yaw,	// -atan2(wy, wx),
+			0.0,	//M_PI/2.4,	//yaw,	// -atan2(wy, wx),
 			ave.ax,	//imu.linear_acceleration.x,
 			ave.ay,	//imu.linear_acceleration.y,
 			ave.az,	//imu.linear_acceleration.z,

@@ -49,7 +49,7 @@ void input_pose(geometry_msgs::Pose& pose)
 int count_usingwalls = 0;
 void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
-	const int num_obs = 2;
+	const int num_obs = 3;
 	if(inipose_is_available){
 		std::cout << count_usingwalls << ": ";
 		count_usingwalls++;
@@ -65,20 +65,21 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 
 		Eigen::MatrixXd Z(num_obs, 1);
 		Z <<	atan2(gy, gz),
-		  		atan2(-gx, sqrt(gy*gy + gz*gz));
-		// Z <<	atan2(g_vector->points[0].normal_y*g, g_vector->points[0].normal_z*g),
-		// 		atan2(-g_vector->points[0].normal_x*g, sqrt(g_vector->points[0].normal_y*g*g_vector->points[0].normal_y*g + g_vector->points[0].normal_z*g*g_vector->points[0].normal_z*g));
+		  		atan2(-gx, sqrt(gy*gy + gz*gz)),
+				X(2, 0);
 
 		Eigen::MatrixXd H(num_obs, num_state);
 		H <<	1,	0,	0,
-				0,	1,	0;
+				0,	1,	0,
+				0, 	0,	1;
 
 		Eigen::MatrixXd jH(num_obs, num_state);
 		jH <<	1,	0,	0,
-				0,	1,	0;
+				0,	1,	0,
+				0,	0,	1;
 
 		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 1.0e+2;
+		const double sigma = 1.0e-0;
 		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(num_obs, 1);
@@ -92,8 +93,6 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 		Y = Z - H*X;
 		S = jH*P*jH.transpose() + R;
 		K = P*jH.transpose()*S.inverse();
-		K(2, 0) = 0.0;	//temporary way
-		K(2, 1) = 0.0;	//temporary way
 		X = X + K*Y;
 		P = (I - K*jH)*P;
 
@@ -136,7 +135,7 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 				0,	1,	0,
 				0,	0,	1;
 		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
-		const double sigma = 1.0e+2;
+		const double sigma = 1.0e+0;
 		Eigen::MatrixXd R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(3, 1);
