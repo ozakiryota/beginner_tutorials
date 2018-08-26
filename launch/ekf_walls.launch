@@ -35,7 +35,8 @@
 		<param name="CHILD_FRAME" value="/pose_estimation_"/>
 	</node>
 
-	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/2018-05-08-19-45-05.bag"/>
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/2018&#45;05&#45;08&#45;19&#45;45&#45;05.bag"/> -->
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/with_realsense/2018-08-24-15-04-13.bag"/>
 
 	<node pkg="rviz" type="rviz" name="rviz"/>
 
