@@ -335,6 +335,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 			std::cout << ">> tmp_ang_from_g_local is too small or large, then skip" << std::endl;
 			continue;
 		}
+		std::cout << "OK" << std::endl;
 		
 		// std::cout << "start caluculating square_error" <<  std::endl;
 		float sum_square_error = 0.0;

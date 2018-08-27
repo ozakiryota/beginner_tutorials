@@ -111,8 +111,8 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 	if(!inipose_is_available)	pose_slam_last = msg->pose.orientation;
 	else{
 		std::cout << "CALLBACK OBSERVATION SLAM" << std::endl;
-		tf::Quaternion q_slam(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w);
-		tf::Quaternion q_slam_last(pose_slam_last.x, pose_slam_last.y, pose_slam_last.z, pose_slam_last.w);
+		tf::Quaternion q_slam(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
+		tf::Quaternion q_slam_last(pose_slam_last.z, -pose_slam_last.x, -pose_slam_last.y, pose_slam_last.w);
 		tf::Quaternion rot_q = q_slam*q_slam.inverse();
 		pose_slam_last = msg->pose.orientation;
 
@@ -121,6 +121,7 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 		double roll, pitch, yaw;
 		// tf::Quaternion tmp_q(imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w);
 		tf::Matrix3x3(rot_q*pose_est).getRPY(roll, pitch, yaw);
+		tf::Matrix3x3(q_slam).getRPY(roll, pitch, yaw);
 	
 		Eigen::MatrixXd Z(num_obs, 1);
 		Z <<	roll,
@@ -135,7 +136,7 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 				0,	1,	0,
 				0,	0,	1;
 		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
-		const double sigma = 1.0e+0;
+		const double sigma = 1.0e-2;
 		Eigen::MatrixXd R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(3, 1);
@@ -147,7 +148,15 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 		K = P*H.transpose()*S.inverse();
 		X = X + K*Y;
 		P = (I - K*H)*P;
+		
+		std::cout << "K*Y = " << std::endl << K*Y << std::endl;
 	}
+	// tf::Quaternion q_test(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
+	// double roll, pitch, yaw;
+	// tf::Matrix3x3(q_test).getRPY(roll, pitch, yaw);
+	// X(0, 0) = roll;
+	// X(1, 0) = pitch;
+	// X(2, 0) = yaw;
 }
 
 void prediction(double dt)
@@ -180,7 +189,7 @@ void prediction(double dt)
 			df1dx0,	df1dx1,	df1dx2,
 			df2dx0,	df2dx1,	df2dx2;	
 	Eigen::MatrixXd Q(num_state, num_state);
-	const double sigma = 1.0e-2;
+	const double sigma = 1.0e-1;
 	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
 	Q = sigma*I;
 
@@ -221,7 +230,7 @@ int main(int argc, char**argv)
 
 	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 1, callback_inipose);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
-	ros::Subscriber sub_obs1 = nh.subscribe("/g_usingwalls", 10, callback_observation_usingwalls);
+	// ros::Subscriber sub_obs1 = nh.subscribe("/g_usingwalls", 10, callback_observation_usingwalls);
 	ros::Subscriber sub_obs2 = nh.subscribe("/lsd_slam/pose", 10, callback_observation_slam);
 	ros::Publisher pub_pose = nh.advertise<geometry_msgs::Pose>("/pose_estimation_", 1);
 
