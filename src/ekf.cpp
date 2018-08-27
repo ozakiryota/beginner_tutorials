@@ -120,8 +120,8 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 
 		double roll, pitch, yaw;
 		// tf::Quaternion tmp_q(imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w);
-		tf::Matrix3x3(rot_q*pose_est).getRPY(roll, pitch, yaw);
-		tf::Matrix3x3(q_slam).getRPY(roll, pitch, yaw);
+		tf::Matrix3x3(rot_q*pose_est).getRPY(roll, pitch, yaw);	//planA
+		tf::Matrix3x3(q_slam).getRPY(roll, pitch, yaw);			//planB
 	
 		Eigen::MatrixXd Z(num_obs, 1);
 		Z <<	roll,
