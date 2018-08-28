@@ -283,6 +283,7 @@ bool judge_moving(void)
 	}
 	if(fabs(record[record.size()-1].ax - ave.ax)>threshold_a){
 		std::cout << "ax" << std::endl;
+		std::cout << "fabs(record[record.size()-1].ax - ave.ax) = " << fabs(record[record.size()-1].ax - ave.ax) << std::endl;
 		return true;
 	}
 	if(fabs(record[record.size()-1].ay - ave.ay)>threshold_a){

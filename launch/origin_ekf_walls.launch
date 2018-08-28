@@ -1,0 +1,45 @@
+<launch>
+	<arg name="postfix" default="" />
+	<arg name="fixed_frame" default="base_link" />
+	<param name="use_sim_time" value="true" />
+	
+	<node name="scan_to_cloud2" pkg="sq_lidar" type="sq_lidar">
+		<param name="fixed_frame" value="$(arg fixed_frame)" />
+		<remap from="~/scan" to="/sq_lidar$(arg postfix)/scan" />
+		<remap from="~/cloud" to="/cloud" />
+		<!-- <remap from="~/cloud" to="/cloud" /> -->
+	</node>
+	
+	<include file="$(find beginner_tutorials)/launch/lcl.launch"/>
+
+	<node pkg="beginner_tutorials" name="sq2_normals" type="sq2_normals">
+		<param name="LOOP_RATE" value="10.0"/>
+		<param name="SEARCH_RADIUS" value="0.5"/>
+		<param name="RANDOM_STEP_MAX" value="200"/>
+		<param name="THRESHOLD_REF_POINTS" value="40"/>
+		<param name="THRESHOLD_ANGLE_FROM_G" value="30.0"/>
+		<param name="THRESHOLD_SUM_SQUARE_ERRORS" value="0.001"/>
+		<param name="MIN_DISTANCE_BETWEEN_NORMSLS" value="0.1"/>
+		<param name="MIN_NUM_GROUPS" value="2"/>
+		<param name="FACTOR_1" value="1.0"/>	<!-- num_refpoints -->
+		<param name="FACTOR_2" value="0.001"/>	<!-- fitting_error -->
+		<param name="FACTOR_3" value="1.0"/>	<!-- ang_from_g_est -->
+		<param name="FACTOR_4" value="1.0"/>	<!-- num_groups -->
+	</node>
+
+	<!-- <node pkg="beginner_tutorials" name="imu_alignment" type="imu_alignment" output="screen"/> -->
+	<node pkg="beginner_tutorials" name="imu_alignment_simple" type="imu_alignment_simple" output="screen"/>
+
+	<node pkg="beginner_tutorials" name="ekf" type="ekf" output="screen"/>
+
+	<node pkg="beginner_tutorials" name="tf_from_posemsg" type="tf_from_posemsg">
+		<param name="SUB_MSG" value="/pose_estimation_"/>
+		<param name="PARENT_FRAME" value="/odom"/>
+		<param name="CHILD_FRAME" value="/pose_estimation_"/>
+	</node>
+
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/2018&#45;05&#45;08&#45;19&#45;45&#45;05.bag"/> -->
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018-08-27-11-32-51.bag"/>
+
+	<node pkg="rviz" type="rviz" name="rviz"/>
+</launch>

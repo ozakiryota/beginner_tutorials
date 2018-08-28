@@ -252,7 +252,7 @@ void prediction(void)
 bool judge_moving(void)
 {
 	const float threshold_w = 0.03;
-	const float threshold_a = 0.05;
+	const float threshold_a = 0.06;
 	if(fabs(record[record.size()-1].wx - ave.wx)>threshold_w){
 		std::cout << "Moved-wx" << std::endl;
 		return true;
@@ -267,6 +267,7 @@ bool judge_moving(void)
 	}
 	if(fabs(record[record.size()-1].ax - ave.ax)>threshold_a){
 		std::cout << "Moved-ax" << std::endl;
+		std::cout << "fabs(record[record.size()-1].ax - ave.ax) = " << fabs(record[record.size()-1].ax - ave.ax) << std::endl;
 		return true;
 	}
 	if(fabs(record[record.size()-1].ay - ave.ay)>threshold_a){
@@ -329,7 +330,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	record.push_back(tmp);
 	
 	calculate_average();
-	const size_t record_size = 1000;
+	const size_t record_size = 100;
 	if(record.size()>record_size){
 		record.erase(record.begin());
 		//calculate_average();
@@ -363,7 +364,7 @@ int main(int argc, char**argv)
 	ros::Publisher pub_float = nh.advertise<std_msgs::Float64>("/graph_y", 10);
 
 	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
-	// X(2, 0) = M_PI/2.4;
+	// X(2, 0) = -M_PI/8.0;
 	std::cout << "X = " << std::endl << X << std::endl;
 	
 	P = 100.0*Eigen::MatrixXd::Identity(num_state, num_state);
@@ -396,7 +397,7 @@ int main(int argc, char**argv)
 	{
 		if(!inipose_is_available){
 			ros::spinOnce();
-			if(record.size()==1000){
+			if(record.size()==100){
 				i++;
 				// if(i>100000)	input_initialpose();
 				if(imu_is_moving)   input_initialpose();

@@ -40,6 +40,7 @@ float FACTOR_1;
 float FACTOR_2;
 float FACTOR_3;
 float FACTOR_4;
+std::string EST_POSEMSG_NAME;
 
 // void print_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int n)
 // {
@@ -442,10 +443,11 @@ int main(int argc, char** argv)
 	local_nh.getParam("FACTOR_2", FACTOR_2);
 	local_nh.getParam("FACTOR_3", FACTOR_3);
 	local_nh.getParam("FACTOR_4", FACTOR_4);
+	local_nh.getParam("EST_POSEMSG_NAME", EST_POSEMSG_NAME);
 
 	/*sub & pub*/
-	ros::Subscriber sub_pose = nh.subscribe("/pose_estimation_", 1, callback_pose);
-	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
+	ros::Subscriber sub_pose = nh.subscribe(EST_POSEMSG_NAME, 1, callback_pose);
+	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 10, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
 	ros::Publisher g_pub = nh.advertise<sensor_msgs::PointCloud2>("/g_usingwalls",1);

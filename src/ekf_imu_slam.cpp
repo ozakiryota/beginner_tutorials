@@ -22,11 +22,8 @@ bool inipose_is_available = false;
 const int num_state = 3;
 Eigen::MatrixXd X(num_state, 1);
 Eigen::MatrixXd P(num_state, num_state);
-geometry_msgs::Quaternion pose_slam_last;
 /*getParam*/
-std::string PUB_POSE_NAME;
-bool USE_SLAM;
-bool USE_WALLS;
+// std::string PUB_POSE_NAME;
 
 void input_pose(geometry_msgs::Pose& pose, Eigen::MatrixXd X)
 {
@@ -50,103 +47,20 @@ void input_pose(geometry_msgs::Pose& pose, Eigen::MatrixXd X)
 	pose.position.z = transform.getOrigin().z();
 }
 
-int count_usingwalls = 0;
-void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
-{
-	const int num_obs = 3;
-	if(inipose_is_available&&USE_WALLS){
-		std::cout << count_usingwalls << ": ";
-		count_usingwalls++;
-		std::cout << "CALLBACK OBSERVATION USINGWALLS" << std::endl;
-		
-		pcl::PointCloud<pcl::PointNormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointNormal>);
-		pcl::fromROSMsg(*msg, *g_vector);
-
-		const float g = -9.80665;
-		double gx = g_vector->points[0].normal_x*g; 
-		double gy = g_vector->points[0].normal_y*g; 
-		double gz = g_vector->points[0].normal_z*g; 
-		std::cout << "G = " << gx << " " << gy << " " << gz << std::endl;
-
-		Eigen::MatrixXd Z(num_obs, 1);
-		Z <<	atan2(gy, gz),
-		  		atan2(-gx, sqrt(gy*gy + gz*gz)),
-				X(2, 0);
-
-		Eigen::MatrixXd H(num_obs, num_state);
-		H <<	1,	0,	0,
-				0,	1,	0,
-				0, 	0,	1;
-
-		Eigen::MatrixXd jH(num_obs, num_state);
-		jH <<	1,	0,	0,
-				0,	1,	0,
-				0,	0,	1;
-
-		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 1.0e-100000;
-		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
-
-		Eigen::MatrixXd Y(num_obs, 1);
-		Eigen::MatrixXd S(num_obs, num_obs);
-		Eigen::MatrixXd K(num_state, num_obs);
-		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
-
-		// std::cout << "X_pre = " << std::endl << X << std::endl;
-		// std::cout << "P_pre = " << std::endl << P << std::endl;
-		
-		Y = Z - H*X;
-		S = jH*P*jH.transpose() + R;
-		K = P*jH.transpose()*S.inverse();
-		X = X + K*Y;
-		P = (I - K*jH)*P;
-
-		// std::cout << "K = " << std::endl << K << std::endl;
-		// std::cout << "K*Y = " << std::endl << K*Y << std::endl;
-		// std::cout << "I - K*jH = " << std::endl << I - K*jH << std::endl;
-		// std::cout << "X_obs = " << std::endl << X << std::endl;
-		// std::cout << "P_obs_walls = " << std::endl << P << std::endl;
-	}
-}
-
-tf::Quaternion q_last;
-Eigen::MatrixXd X_last(num_state, 1);
 void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 {
 	const int num_obs = 3;
 
-	tf::Quaternion q_now(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
-	if(!inipose_is_available){
-		q_last = q_now;
-		X_last = X;
-	}
-	// if(!inipose_is_available)	pose_slam_last = msg->pose.orientation;
-	else if(USE_SLAM){
+	if(inipose_is_available){
 		// std::cout << "CALLBACK OBSERVATION SLAM" << std::endl;
-		// tf::Quaternion q_now(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
-		// tf::Quaternion q_last(pose_slam_last.z, -pose_slam_last.x, -pose_slam_last.y, pose_slam_last.w);
-		// tf::Quaternion rot_q = q_slam*q_slam.inverse();
-		// pose_slam_last = msg->pose.orientation;
-
-		// tf::Quaternion x_now = tf::createQuaternionFromRPY(X(0, 0), X(1, 0), X(2, 0));
-		tf::Quaternion x_last = tf::createQuaternionFromRPY(X_last(0, 0), X_last(1, 0), X_last(2, 0));
-
+		tf::Quaternion q_now(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
 		double roll, pitch, yaw;
-		// double roll_, pitch_, yaw_;
-		tf::Matrix3x3((q_now*q_last.inverse())*x_last).getRPY(roll, pitch, yaw);	//planA
-		// tf::Matrix3x3(q_now).getRPY(roll, pitch, yaw);			//planB
-		// tf::Matrix3x3(q_last).getRPY(roll_, pitch_, yaw_);
+		tf::Matrix3x3(q_now).getRPY(roll, pitch, yaw);
 
 		Eigen::MatrixXd Z(num_obs, 1);
 		Z <<	roll,
 				pitch,
 				yaw;
-		// Z <<	X_last(0, 0) + (roll - roll_),
-		// 		X_last(1, 0) + (pitch - pitch_),
-		// 		X_last(2, 0) + (yaw - yaw_);
-		q_last = q_now;
-		X_last = X;
-		
 		Eigen::MatrixXd H(num_obs, num_state);
 		H <<	1,	0,	0,
 				0,	1,	0,
@@ -156,7 +70,7 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 				0,	1,	0,
 				0,	0,	1;
 		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
-		const double sigma = 1.0e-1;
+		const double sigma = 1.0e-2;
 		Eigen::MatrixXd R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(3, 1);
@@ -172,21 +86,6 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 		// std::cout << "K*Y = " << std::endl << K*Y << std::endl;
 		// std::cout << "P_obs_slam = " << std::endl << P << std::endl;
 	}
-	/* testing */
-	// tf::Quaternion q_now_(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
-	// if(!inipose_is_available)	q_last = q_now_;
-	// else{
-	// 	double roll, pitch, yaw;
-	// 	double roll_, pitch_, yaw_;
-	// 	tf::Quaternion x = tf::createQuaternionFromRPY(X(0, 0), X(1, 0), X(2, 0));
-	// 	// tf::Matrix3x3((q_now_*q_last.inverse())*x).getRPY(roll, pitch, yaw);
-	// 	tf::Matrix3x3(q_now_).getRPY(roll, pitch, yaw);
-	// 	tf::Matrix3x3(q_last).getRPY(roll_, pitch_, yaw_);
-	// 	X(0, 0) += roll - roll_;
-	// 	X(1, 0) += pitch - pitch_;
-	// 	X(2, 0) += yaw - yaw_;
-	// 	q_last = q_now_;
-	// }
 }
 
 void prediction(double dt)
@@ -219,7 +118,7 @@ void prediction(double dt)
 			df1dx0,	df1dx1,	df1dx2,
 			df2dx0,	df2dx1,	df2dx2;	
 	Eigen::MatrixXd Q(num_state, num_state);
-	const double sigma = 1.0e+0;
+	const double sigma = 1.0e-0;
 	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
 	Q = sigma*I;
 
@@ -252,24 +151,18 @@ void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
 
 int main(int argc, char**argv)
 {
-	ros::init(argc, argv, "ekf");
+	ros::init(argc, argv, "ekf_imu_slam");
 	ros::NodeHandle nh;
 
 	current_time = ros::Time::now();
 	last_time = ros::Time::now();
-	
-	ros::NodeHandle local_nh("~");
-	local_nh.getParam("PUB_POSE_NAME", PUB_POSE_NAME);
-	local_nh.getParam("USE_SLAM", USE_SLAM);
-	local_nh.getParam("USE_WALLS", USE_WALLS);
 
 	geometry_msgs::Pose pose;
 	
 	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 1, callback_inipose);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
-	ros::Subscriber sub_obs1 = nh.subscribe("/g_usingwalls", 10, callback_observation_usingwalls);
 	ros::Subscriber sub_obs2 = nh.subscribe("/lsd_slam/pose", 10, callback_observation_slam);
-	ros::Publisher pub_pose = nh.advertise<geometry_msgs::Pose>(PUB_POSE_NAME, 1);
+	ros::Publisher pub_pose = nh.advertise<geometry_msgs::Pose>("/pose_imu_slam", 1);
 
 	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
 	P = 100.0*Eigen::MatrixXd::Identity(num_state, num_state);
