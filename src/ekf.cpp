@@ -62,7 +62,7 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 		pcl::PointCloud<pcl::PointNormal>::Ptr g_vector (new pcl::PointCloud<pcl::PointNormal>);
 		pcl::fromROSMsg(*msg, *g_vector);
 
-		const float g = -9.80665;
+		const double g = -9.80665;
 		double gx = g_vector->points[0].normal_x*g; 
 		double gy = g_vector->points[0].normal_y*g; 
 		double gz = g_vector->points[0].normal_z*g; 
@@ -84,7 +84,7 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 				0,	0,	1;
 
 		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 1.0e-10;
+		const double sigma = 1.0e-20;
 		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(num_obs, 1);
@@ -227,14 +227,19 @@ void prediction(double dt)
 			df1dx0,	df1dx1,	df1dx2,
 			df2dx0,	df2dx1,	df2dx2;	
 	Eigen::MatrixXd Q(num_state, num_state);
-	const double sigma = 1.0e+0;
+	// const double sigma = 1.0e+0;
+	const double sigma = 0.0;
 	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
 	Q = sigma*I;
 
 	X = F;
 	P = jF*P*jF.transpose() + Q;
-		
+
+	if(X(2, 0)>M_PI)	X(2, 0) -= 2*M_PI;
+	if(X(2, 0)<-M_PI)	X(2, 0) += 2*M_PI;
+
 	// std::cout << "P_pre = " << std::endl << P << std::endl;
+	// std::cout << "F = " << std::endl << F << std::endl;
 }
 
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)

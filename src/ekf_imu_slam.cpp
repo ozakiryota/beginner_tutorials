@@ -131,7 +131,10 @@ void prediction(double dt)
 
 	X = F;
 	P = jF*P*jF.transpose() + Q;
-		
+	
+	if(X(2, 0)>M_PI)    X(2, 0) -= 2*M_PI;
+	if(X(2, 0)<-M_PI)    X(2, 0) += 2*M_PI;
+
 	// std::cout << "P_pre = " << std::endl << P << std::endl;
 }
 

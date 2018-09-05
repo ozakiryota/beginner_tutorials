@@ -226,7 +226,7 @@ void observation(void)
 	
 	
 	// graph_y.data = X(0, 0);
-	graph_y.data = X(0, 0);
+	// graph_y.data = X(0, 0);
 }
 	
 void prediction(void)
@@ -298,6 +298,7 @@ void calculate_average(void)
 		ave.ay += record[i].ay/(double)record.size();
 		ave.az += record[i].az/(double)record.size();
 	}
+	// graph_y.data = ave.wx;
 }
 
 Eigen::MatrixXd Acc_last(3, 1);
@@ -347,6 +348,9 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	
 	
 	// graph_y.data = imu.linear_acceleration.x;
+	// const double alpha = 0.01;
+	// graph_y.data = alpha*imu.angular_velocity.x + (1.0-alpha)*graph_y.data;
+	graph_y.data = imu.angular_velocity.z;
 	// graph_y.data = Acc(0, 0);
 }
 
