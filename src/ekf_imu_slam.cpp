@@ -70,7 +70,7 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 				0,	1,	0,
 				0,	0,	1;
 		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
-		const double sigma = 1.0e-2;
+		const double sigma = 1.0e-4;
 		Eigen::MatrixXd R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(3, 1);
@@ -86,6 +86,13 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 		// std::cout << "K*Y = " << std::endl << K*Y << std::endl;
 		// std::cout << "P_obs_slam = " << std::endl << P << std::endl;
 	}
+	/* testing */
+	// tf::Quaternion q_now_(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
+	// double roll_, pitch_, yaw_;
+	// tf::Matrix3x3(q_now_).getRPY(roll_, pitch_, yaw_);
+	// X(0, 0) = roll_;
+	// X(1, 0) = pitch_;
+	// X(2, 0) = yaw_;
 }
 
 void prediction(double dt)

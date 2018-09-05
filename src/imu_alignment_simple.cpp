@@ -364,7 +364,7 @@ int main(int argc, char**argv)
 	ros::Publisher pub_float = nh.advertise<std_msgs::Float64>("/graph_y", 10);
 
 	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
-	// X(2, 0) = -M_PI/8.0;
+	// X(2, 0) = -M_PI/10.0;
 	std::cout << "X = " << std::endl << X << std::endl;
 	
 	P = 100.0*Eigen::MatrixXd::Identity(num_state, num_state);

@@ -66,7 +66,7 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 		double gx = g_vector->points[0].normal_x*g; 
 		double gy = g_vector->points[0].normal_y*g; 
 		double gz = g_vector->points[0].normal_z*g; 
-		std::cout << "G = " << gx << " " << gy << " " << gz << std::endl;
+		// std::cout << "G = " << gx << " " << gy << " " << gz << std::endl;
 
 		Eigen::MatrixXd Z(num_obs, 1);
 		Z <<	atan2(gy, gz),
@@ -84,7 +84,7 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 				0,	0,	1;
 
 		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 1.0e-100000;
+		const double sigma = 1.0e-10;
 		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(num_obs, 1);
@@ -111,17 +111,21 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 
 tf::Quaternion q_last;
 Eigen::MatrixXd X_last(num_state, 1);
+int count_slam = 0;
 void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 {
 	const int num_obs = 3;
 
 	tf::Quaternion q_now(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
-	if(!inipose_is_available){
-		q_last = q_now;
-		X_last = X;
-	}
+	// if(!inipose_is_available){
+	// 	q_last = q_now;
+	// 	X_last = X;
+	// }
+	if(inipose_is_available)	count_slam++;
 	// if(!inipose_is_available)	pose_slam_last = msg->pose.orientation;
-	else if(USE_SLAM){
+	// if(USE_SLAM && inipose_is_available && count_slam>100){
+	if(USE_SLAM && inipose_is_available){
+		if(count_slam==101)	std::cout << "CALLBACK OBSERVATION SLAM" << std::endl;
 		// std::cout << "CALLBACK OBSERVATION SLAM" << std::endl;
 		// tf::Quaternion q_now(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
 		// tf::Quaternion q_last(pose_slam_last.z, -pose_slam_last.x, -pose_slam_last.y, pose_slam_last.w);
@@ -156,7 +160,7 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 				0,	1,	0,
 				0,	0,	1;
 		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
-		const double sigma = 1.0e-1;
+		const double sigma = 1.0e-4;
 		Eigen::MatrixXd R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(3, 1);
@@ -171,6 +175,10 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 
 		// std::cout << "K*Y = " << std::endl << K*Y << std::endl;
 		// std::cout << "P_obs_slam = " << std::endl << P << std::endl;
+	}
+	else{
+		q_last = q_now;
+		X_last = X;
 	}
 	/* testing */
 	// tf::Quaternion q_now_(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
