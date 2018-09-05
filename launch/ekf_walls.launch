@@ -48,13 +48,13 @@
 	</group>
 
 	<group ns="imu_slam">
-		<node pkg="beginner_tutorials" name="ekf_imu_slam" type="ekf_imu_slam" output="screen"/>
+		<!-- <node pkg="beginner_tutorials" name="ekf_imu_slam" type="ekf_imu_slam" output="screen"/> -->
 		
-		<!-- <node pkg="beginner_tutorials" name="ekf" type="ekf" output="screen"> -->
-		<!-- 	<param name="PUB_POSE_NAME" value="/pose_imu_slam"/> -->
-		<!-- 	<param name="USE_SLAM" value="true"/> -->
-		<!-- 	<param name="USE_WALLS" value="false"/> -->
-		<!-- </node> -->
+		<node pkg="beginner_tutorials" name="ekf" type="ekf" output="screen">
+			<param name="PUB_POSE_NAME" value="/pose_imu_slam"/>
+			<param name="USE_SLAM" value="true"/>
+			<param name="USE_WALLS" value="false"/>
+		</node>
 
 		<node pkg="beginner_tutorials" name="tf_from_posemsg" type="tf_from_posemsg">
 			<param name="SUB_MSG" value="/pose_imu_slam"/>

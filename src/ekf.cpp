@@ -84,7 +84,7 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 				0,	0,	1;
 
 		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 1.0e-20;
+		const double sigma = 1.0e-30;
 		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(num_obs, 1);
@@ -235,6 +235,10 @@ void prediction(double dt)
 	X = F;
 	P = jF*P*jF.transpose() + Q;
 
+	if(X(0, 0)>M_PI)	X(0, 0) -= 2*M_PI;
+	if(X(0, 0)<-M_PI)	X(0, 0) += 2*M_PI;
+	if(X(1, 0)>M_PI)	X(1, 0) -= 2*M_PI;
+	if(X(1, 0)<-M_PI)	X(1, 0) += 2*M_PI;
 	if(X(2, 0)>M_PI)	X(2, 0) -= 2*M_PI;
 	if(X(2, 0)<-M_PI)	X(2, 0) += 2*M_PI;
 
