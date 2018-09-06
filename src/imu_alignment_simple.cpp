@@ -39,6 +39,7 @@ void input_initialpose(void)
 {
 	std::cout << "INPUT INITIALPOSE" << std::endl;
 	tf::Quaternion q = tf::createQuaternionFromRPY(X(0, 0), X(1, 0), X(2, 0));
+	// q = tf::Quaternion(0.0, 0.0, 0.0, 1.0);
 	quaternionTFToMsg(q, initial_pose);
 	inipose_is_available = true;
 	// initial_pose = imu.orientation;

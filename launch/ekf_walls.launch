@@ -66,6 +66,7 @@
 	<node pkg="beginner_tutorials" name="tf_lsdslam" type="tf_lsdslam"/>
 
 	<node pkg="beginner_tutorials" name="odom2dto3d" type="odom2dto3d"/>
+	<node pkg="beginner_tutorials" name="odom2dto3d_" type="odom2dto3d_"/>
 
 	<!-- <node pkg="beginner_tutorials" name="graph_imu.py" type="graph_imu.py"/> -->
 

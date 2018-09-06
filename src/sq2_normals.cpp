@@ -501,7 +501,8 @@ int main(int argc, char** argv)
 				std::cout << "success" << std::endl;
 				sensor_msgs::PointCloud2 g_out;
 				pcl::toROSMsg(*g_vector, g_out);
-				g_out.header.frame_id = "/centerlaser";
+				// g_out.header.frame_id = "/centerlaser";
+				g_out.header.frame_id = "/odom3d";
 				g_pub.publish(g_out);
 			}
 

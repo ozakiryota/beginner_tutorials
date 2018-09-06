@@ -5,6 +5,7 @@
 #include <tf/transform_listener.h>
 #include <nav_msgs/Odometry.h>
 #include <Eigen/Core>
+#include <Eigen/LU>
 
 sensor_msgs::Imu imu;
 // float LOOP_RATE;
@@ -79,28 +80,40 @@ void callback_imu1(const sensor_msgs::ImuConstPtr& msg)
 		double pitch;
 		double yaw;
 		tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
-		Eigen::MatrixXf R(3, 1);
+		Eigen::MatrixXd R(3, 1);
 		R <<	roll,
 		  		pitch,
 				yaw;	
-		double roll_ = -imu.angular_velocity.x*dt;
-		double pitch_ = -imu.angular_velocity.y*dt;
-		double yaw_ = -imu.angular_velocity.z*dt;
-		Eigen::MatrixXf U(3, 1);
+		double roll_ = -imu.angular_velocity.x;
+		double pitch_ = -imu.angular_velocity.y;
+		double yaw_ = -imu.angular_velocity.z;
+		Eigen::MatrixXd U(3, 1);
 		U <<	roll_,
 	  			pitch_,
 				yaw_;
-		Eigen::MatrixXf A(3, 3);
+		Eigen::MatrixXd A(3, 3);
 		A <<	1,	0,	0,
 	  			0,	1,	0,
 				0,	0,	1;
-		Eigen::MatrixXf B(3, 3);
-		B <<	1,	sin(roll)*tan(pitch),	cos(roll)*tan(pitch),
-	  			0,	cos(roll),	-sin(pitch),
-				0,	sin(roll)/cos(pitch),	cos(roll)/cos(pitch);
+		Eigen::MatrixXd B(3, 3);
+		B <<	1.0,	sin(roll)*tan(pitch),	cos(roll)*tan(pitch),
+	  			0.0,	cos(roll),	-sin(pitch),
+				0.0,	sin(roll)/cos(pitch),	cos(roll)/cos(pitch);
+		// B <<	-sin(pitch),	0.0,	1.0,
+		//   		cos(pitch)*sin(yaw),	cos(yaw),	0.0,
+		// 		cos(pitch)*cos(yaw),	-sin(yaw),	0.0;
 
-		R = A*R + B*U;
+		R = A*R + B*U*dt;
+		// R = A*R + B.inverse()*U*dt;
 		q = tf::createQuaternionFromRPY(R(0, 0), R(1, 0), R(2, 0));
+
+		std::cout << "B*U*dt = " << std::endl << B*U*dt << std::endl;
+		std::cout << "R = " << std::endl << R << std::endl;
+		if(R(0, 0)>M_PI)	R(0, 0) -= 2.0*M_PI;
+		if(R(0, 0)<-M_PI)	R(0, 0) += 2.0*M_PI;
+		if(fabs(R(0, 0))>M_PI)	exit(1);
+		if(fabs(R(1, 0))>M_PI)	exit(1);
+		if(fabs(R(2, 0))>M_PI)	exit(1);
 	}
 
 	const double g = 9.80665;
@@ -128,8 +141,8 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh; 
 	ros::NodeHandle local_nh("~");
 	local_nh.getParam("TARGET_FRAME", TARGET_FRAME);
-	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
-	// ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu1);
+	// ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
+	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu1);
 	ros::Publisher pub_pose = nh.advertise<geometry_msgs::PoseStamped>("/pose_test", 1);
 
 	current_time = ros::Time::now();

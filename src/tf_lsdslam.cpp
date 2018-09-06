@@ -12,13 +12,15 @@ void callback(const geometry_msgs::PoseStampedConstPtr& msg)
 	geometry_msgs::TransformStamped transform;
 	transform.header.stamp = ros::Time::now();
 	transform.header.frame_id = "/odom";
-	transform.child_frame_id = "/lsd_slam/cameraframe";
+	transform.child_frame_id = "/lsdslam/cameraframe";
 	
 	tf::TransformListener listener;
 	tf::StampedTransform transform_;
 	try {
-		listener.waitForTransform("/odom", "/base_link", ros::Time(0), ros::Duration(10.0) );
-		listener.lookupTransform("/odom", "/base_link", ros::Time(0), transform_);
+		// listener.waitForTransform("/odom", "/base_link", ros::Time(0), ros::Duration(10.0) );
+		// listener.lookupTransform("/odom", "/base_link", ros::Time(0), transform_);
+		listener.waitForTransform("/odom", "/odom3d", ros::Time(0), ros::Duration(10.0) );
+		listener.lookupTransform("/odom", "/odom3d", ros::Time(0), transform_);
 	}
 	catch (tf::TransformException ex){
 		ROS_ERROR("%s",ex.what());
