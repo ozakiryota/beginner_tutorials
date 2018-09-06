@@ -87,7 +87,7 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 				0,	0,	1;
 
 		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 1.0e-100;
+		const double sigma = 1.0e-1000;
 		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(num_obs, 1);
@@ -101,11 +101,15 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 		Y = Z - H*X;
 		S = jH*P*jH.transpose() + R;
 		K = P*jH.transpose()*S.inverse();
+		// K(2, 0) = 0.0;
+		// K(2, 1) = 0.0;
+		// K(2, 2) = 0.0;
 		X = X + K*Y;
 		P = (I - K*jH)*P;
 
 		// std::cout << "K = " << std::endl << K << std::endl;
-		// std::cout << "K*Y = " << std::endl << K*Y << std::endl;
+		std::cout << "Y = " << std::endl << Y << std::endl;
+		std::cout << "K*Y = " << std::endl << K*Y << std::endl;
 		// std::cout << "I - K*jH = " << std::endl << I - K*jH << std::endl;
 		// std::cout << "X_obs = " << std::endl << X << std::endl;
 		// std::cout << "P_obs_walls = " << std::endl << P << std::endl;
