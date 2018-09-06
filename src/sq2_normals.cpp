@@ -447,7 +447,7 @@ int main(int argc, char** argv)
 
 	/*sub & pub*/
 	ros::Subscriber sub_pose = nh.subscribe(EST_POSEMSG_NAME, 1, callback_pose);
-	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 10, cloud_callback);
+	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 50, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
 	ros::Publisher g_pub = nh.advertise<sensor_msgs::PointCloud2>("/g_usingwalls",1);
@@ -485,13 +485,15 @@ int main(int argc, char** argv)
 			/*-----publish-----*/
 			sensor_msgs::PointCloud2 roscloud_out;
 			pcl::toROSMsg(*cloud, roscloud_out);
-			roscloud_out.header.frame_id = "/centerlaser";
+			// roscloud_out.header.frame_id = "/centerlaser";
+			roscloud_out.header.frame_id = "/odom3d";
 			// roscloud_out.header.stamp = tm;
 			cloud_pub.publish(roscloud_out);
 
 			sensor_msgs::PointCloud2 rosnormals_out;
 			pcl::toROSMsg(*normals, rosnormals_out);
-			rosnormals_out.header.frame_id = "/centerlaser";
+			// rosnormals_out.header.frame_id = "/centerlaser";
+			rosnormals_out.header.frame_id = "/odom3d";
 			// rosnormals_out.header.stamp = tm;
 			normals_pub.publish(rosnormals_out);
 			
