@@ -101,15 +101,15 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 		Y = Z - H*X;
 		S = jH*P*jH.transpose() + R;
 		K = P*jH.transpose()*S.inverse();
-		// K(2, 0) = 0.0;
-		// K(2, 1) = 0.0;
-		// K(2, 2) = 0.0;
+		K(2, 0) = 0.0;	//temporary repair
+		K(2, 1) = 0.0;	//temporary repair
+		K(2, 2) = 0.0;	//temporary repair
 		X = X + K*Y;
 		P = (I - K*jH)*P;
 
 		// std::cout << "K = " << std::endl << K << std::endl;
-		std::cout << "Y = " << std::endl << Y << std::endl;
-		std::cout << "K*Y = " << std::endl << K*Y << std::endl;
+		// std::cout << "Y = " << std::endl << Y << std::endl;
+		// std::cout << "K*Y = " << std::endl << K*Y << std::endl;
 		// std::cout << "I - K*jH = " << std::endl << I - K*jH << std::endl;
 		// std::cout << "X_obs = " << std::endl << X << std::endl;
 		// std::cout << "P_obs_walls = " << std::endl << P << std::endl;
@@ -128,11 +128,12 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 	// 	q_last = q_now;
 	// 	X_last = X;
 	// }
+	const int delay = 0;
 	if(inipose_is_available)	count_slam++;
 	// if(!inipose_is_available)	pose_slam_last = msg->pose.orientation;
 	// if(USE_SLAM && inipose_is_available && count_slam>100){
-	if(USE_SLAM && inipose_is_available){
-		if(count_slam==101)	std::cout << "CALLBACK OBSERVATION SLAM" << std::endl;
+	if(USE_SLAM && inipose_is_available && count_slam>delay){
+		if(count_slam==delay+1)	std::cout << "CALLBACK OBSERVATION SLAM" << std::endl;
 		// std::cout << "CALLBACK OBSERVATION SLAM" << std::endl;
 		// tf::Quaternion q_now(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
 		// tf::Quaternion q_last(pose_slam_last.z, -pose_slam_last.x, -pose_slam_last.y, pose_slam_last.w);
@@ -234,9 +235,9 @@ void prediction(double dt)
 			df1dx0,	df1dx1,	df1dx2,
 			df2dx0,	df2dx1,	df2dx2;	
 	Eigen::MatrixXd Q(num_state, num_state);
-	// const double sigma = 1.0e+0;
-	const double sigma = 0.0;
+	const double sigma = 1.0e+0;
 	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
+	// Q(2, 2) = 1.0e-1000;
 	Q = sigma*I;
 
 	X = F;

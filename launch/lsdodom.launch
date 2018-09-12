@@ -1,0 +1,6 @@
+<launch>
+	<node pkg="beginner_tutorials" name="lsdodom" type="lsdodom"/>
+	<node pkg="beginner_tutorials" name="odom2dto3d" type="odom2dto3d"/>
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018-08-27-11-32-51.bag"/>
+	<node pkg="rviz" type="rviz" name="rviz"/>
+</launch>

@@ -40,33 +40,34 @@
 			<param name="USE_WALLS" value="true"/>
 		</node>
 
-		<node pkg="beginner_tutorials" name="tf_from_posemsg" type="tf_from_posemsg">
-			<param name="SUB_MSG" value="$(arg posemsg_name)"/>
-			<param name="PARENT_FRAME" value="/odom"/>
-			<param name="CHILD_FRAME" value="$(arg posemsg_name)"/>
-		</node>
+		<!-- <node pkg="beginner_tutorials" name="tf_from_posemsg" type="tf_from_posemsg"> -->
+		<!-- 	<param name="SUB_MSG" value="$(arg posemsg_name)"/> -->
+		<!-- 	<param name="PARENT_FRAME" value="/odom"/> -->
+		<!-- 	<param name="CHILD_FRAME" value="$(arg posemsg_name)"/> -->
+		<!-- </node> -->
 	</group>
 
-	<group ns="imu_slam">
-		<!-- <node pkg="beginner_tutorials" name="ekf_imu_slam" type="ekf_imu_slam" output="screen"/> -->
-		
-		<node pkg="beginner_tutorials" name="ekf" type="ekf" output="screen">
-			<param name="PUB_POSE_NAME" value="/pose_imu_slam"/>
-			<param name="USE_SLAM" value="true"/>
-			<param name="USE_WALLS" value="false"/>
-		</node>
+	<!-- <group ns="imu_slam"> -->
+	<!-- 	<!&#45;&#45; <node pkg="beginner_tutorials" name="ekf_imu_slam" type="ekf_imu_slam" output="screen"/> &#45;&#45;> -->
+	<!-- 	 -->
+	<!-- 	<node pkg="beginner_tutorials" name="ekf" type="ekf" output="screen"> -->
+	<!-- 		<param name="PUB_POSE_NAME" value="/pose_imu_slam"/> -->
+	<!-- 		<param name="USE_SLAM" value="true"/> -->
+	<!-- 		<param name="USE_WALLS" value="false"/> -->
+	<!-- 	</node> -->
+    <!--  -->
+	<!-- 	<node pkg="beginner_tutorials" name="tf_from_posemsg" type="tf_from_posemsg"> -->
+	<!-- 		<param name="SUB_MSG" value="/pose_imu_slam"/> -->
+	<!-- 		<param name="PARENT_FRAME" value="/odom"/> -->
+	<!-- 		<param name="CHILD_FRAME" value="/pose_imu_slam"/> -->
+	<!-- 	</node> -->
+	<!-- </group> -->
 
-		<node pkg="beginner_tutorials" name="tf_from_posemsg" type="tf_from_posemsg">
-			<param name="SUB_MSG" value="/pose_imu_slam"/>
-			<param name="PARENT_FRAME" value="/odom"/>
-			<param name="CHILD_FRAME" value="/pose_imu_slam"/>
-		</node>
-	</group>
-
-	<node pkg="beginner_tutorials" name="tf_lsdslam" type="tf_lsdslam"/>
+	<!-- <node pkg="beginner_tutorials" name="tf_lsdslam" type="tf_lsdslam"/> -->
 
 	<node pkg="beginner_tutorials" name="odom2dto3d" type="odom2dto3d"/>
 	<node pkg="beginner_tutorials" name="odom2dto3d_" type="odom2dto3d_"/>
+	<node pkg="beginner_tutorials" name="lsdodom" type="lsdodom"/>
 
 	<!-- <node pkg="beginner_tutorials" name="graph_imu.py" type="graph_imu.py"/> -->
 
