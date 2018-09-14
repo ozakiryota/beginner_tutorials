@@ -207,7 +207,7 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 
 void prediction(double dt)
 {
-	// std::cout << "PREDICTION" << std::endl;
+	std::cout << "PREDICTION" << std::endl;
 	double roll = X(0, 0);
 	double pitch = X(1, 0);
 	double yaw = X(2, 0);
@@ -244,15 +244,15 @@ void prediction(double dt)
 	P = jF*P*jF.transpose() + Q;
 	
 	/*誤差対策*/
-	// q_predict = tf::createQuaternionFromRPY(wx*dt, wy*dt, wz*dt)*q_predict;
-	// tf::Matrix3x3(q_predict).getRPY(X(0, 0), X(1, 0), X(2, 0));
+	q_predict = tf::createQuaternionFromRPY(wx*dt, wy*dt, wz*dt)*q_predict;
+	tf::Matrix3x3(q_predict).getRPY(X(0, 0), X(1, 0), X(2, 0));
 
-	if(X(0, 0)>M_PI)	X(0, 0) -= 2*M_PI;
-	if(X(0, 0)<-M_PI)	X(0, 0) += 2*M_PI;
-	if(X(1, 0)>M_PI)	X(1, 0) -= 2*M_PI;
-	if(X(1, 0)<-M_PI)	X(1, 0) += 2*M_PI;
-	if(X(2, 0)>M_PI)	X(2, 0) -= 2*M_PI;
-	if(X(2, 0)<-M_PI)	X(2, 0) += 2*M_PI;
+	// if(X(0, 0)>M_PI)	X(0, 0) -= 2*M_PI;
+	// if(X(0, 0)<-M_PI)	X(0, 0) += 2*M_PI;
+	// if(X(1, 0)>M_PI)	X(1, 0) -= 2*M_PI;
+	// if(X(1, 0)<-M_PI)	X(1, 0) += 2*M_PI;
+	// if(X(2, 0)>M_PI)	X(2, 0) -= 2*M_PI;
+	// if(X(2, 0)<-M_PI)	X(2, 0) += 2*M_PI;
 
 	// std::cout << "P_pre = " << std::endl << P << std::endl;
 	// std::cout << "F = " << std::endl << F << std::endl;
@@ -273,6 +273,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
 {
 	if(!inipose_is_available){
+		std::cout << "inipose_is_available" << std::endl;
 		tf::Quaternion tmp_q(msg->x, msg->y, msg->z, msg->w);
 		tf::Matrix3x3(tmp_q).getRPY(X(0, 0), X(1, 0), X(2, 0));
 		inipose_is_available = true;
@@ -295,7 +296,7 @@ int main(int argc, char**argv)
 	geometry_msgs::Pose pose;
 	
 	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 1, callback_inipose);
-	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 100, callback_imu);
+	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1000, callback_imu);
 	ros::Subscriber sub_obs1 = nh.subscribe("/g_usingwalls", 10, callback_observation_usingwalls);
 	ros::Subscriber sub_obs2 = nh.subscribe("/lsd_slam/pose", 10, callback_observation_slam);
 	ros::Publisher pub_pose = nh.advertise<geometry_msgs::Pose>(PUB_POSE_NAME, 1);

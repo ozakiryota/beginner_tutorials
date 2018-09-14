@@ -15,6 +15,8 @@ nav_msgs::Odometry odom3d_now;
 nav_msgs::Odometry odom3d_last;
 bool first_callback_odom = true;
 bool first_callback_imu = true;
+sensor_msgs::Imu bias;
+bool bias_is_available = false;
 
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 {
@@ -28,10 +30,22 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	double wx = msg->angular_velocity.x*dt;
 	double wy = msg->angular_velocity.y*dt;
 	double wz = msg->angular_velocity.z*dt;
+	// if(bias_is_available){
+	// 	wx -= bias.angular_velocity.x;
+	// 	wy -= bias.angular_velocity.y;
+	// 	wz -= bias.angular_velocity.z;
+	// }
 	q = tf::createQuaternionFromRPY(wx, wy, wz)*q;
 	quaternionTFToMsg(q, odom3d_now.pose.pose.orientation);
 
 	first_callback_imu = false;
+}
+
+void callback_bias(const sensor_msgs::ImuConstPtr& msg)
+{
+	// std::cout << "CALLBACK BIAS" << std::endl;
+	bias = *msg;
+	bias_is_available = true;
 }
 
 Eigen::MatrixXd frame_rotation(geometry_msgs::Quaternion q, Eigen::MatrixXd X, bool from_global_to_local)
@@ -104,6 +118,7 @@ int main(int argc, char** argv)
 
 	ros::Subscriber sub_odom = nh.subscribe("/odom", 10, callback_odom);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
+	ros::Subscriber sub_bias = nh.subscribe("/imu_bias", 10, callback_bias);
 	ros::Publisher pub = nh.advertise<nav_msgs::Odometry>("/odom3d", 1);
 
 	time_now = ros::Time::now();

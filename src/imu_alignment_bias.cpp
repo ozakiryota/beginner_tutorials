@@ -12,28 +12,18 @@
 #include <random>
 #include <std_msgs/Float64.h>
 
-sensor_msgs::Imu imu;
 geometry_msgs::Quaternion initial_pose;
-std::vector<beginner_tutorials::imudata> record;
 beginner_tutorials::imudata ave;
 beginner_tutorials::imudata bias;
-// ros::Time current_time;
-// ros::Time last_time;
 bool imu_is_moving = false;
-bool inipose_is_available = false;
 const int num_state = 3;
 Eigen::MatrixXd X(num_state, 1);
 Eigen::MatrixXd P(num_state, num_state);
-// FILE* fp;
 std_msgs::Float64 graph_y;
 
-// void input_bias(void)
-// {
-// 	std::cout << "INPUT BIAS" << std::endl;
-// 	bias.ax = X(6, 0);
-// 	bias.ay = X(7, 0);
-// 	bias.az = X(8, 0);
-// }
+std::vector<sensor_msgs::Imu> record;
+sensor_msgs::Imu average;
+ros::Time time_started;
 
 void input_initialpose(void)
 {
@@ -41,7 +31,7 @@ void input_initialpose(void)
 	tf::Quaternion q = tf::createQuaternionFromRPY(X(0, 0), X(1, 0), X(2, 0));
 	// q = tf::Quaternion(0.0, 0.0, 0.0, 1.0);
 	quaternionTFToMsg(q, initial_pose);
-	inipose_is_available = true;
+	// inipose_is_available = true;
 	// initial_pose = imu.orientation;
 }
 
@@ -84,9 +74,9 @@ void observation_(void)
 
 	bool trans = false;
 
-	double ax = ave.ax;
-	double ay = ave.ay;
-	double az = ave.az;
+	double ax = average.angular_velocity.x;
+	double ay = average.angular_velocity.y;
+	double az = average.angular_velocity.z;
 	double roll = X(0, 0);
 	double pitch = X(1, 0);
 	double yaw = X(2, 0);
@@ -184,9 +174,9 @@ void observation(void)
 {
 	const int num_obs = 3;	
 
-	double ax = ave.ax;
-	double ay = ave.ay;
-	double az = ave.az;
+	double ax = average.angular_velocity.x;
+	double ay = average.angular_velocity.y;
+	double az = average.angular_velocity.z;
 	double roll = X(0, 0);
 	double pitch = X(1, 0);
 	double yaw = X(2, 0);
@@ -253,29 +243,28 @@ void prediction(void)
 bool judge_moving(void)
 {
 	const float threshold_w = 0.03;
-	const float threshold_a = 0.06;
-	if(fabs(record[record.size()-1].wx - ave.wx)>threshold_w){
+	const float threshold_a = 0.07;
+	if(fabs(record[record.size()-1].angular_velocity.x - average.angular_velocity.x)>threshold_w){
 		std::cout << "Moved-wx" << std::endl;
 		return true;
 	}
-	if(fabs(record[record.size()-1].wy - ave.wy)>threshold_w){
+	if(fabs(record[record.size()-1].angular_velocity.y - average.angular_velocity.y)>threshold_w){
 		std::cout << "Moved-wy" << std::endl;
 		return true;
 	}
-	if(fabs(record[record.size()-1].wz - ave.wz)>threshold_w){
+	if(fabs(record[record.size()-1].angular_velocity.z - average.angular_velocity.z)>threshold_w){
 		std::cout << "Moved-wz" << std::endl;
 		return true;
 	}
-	if(fabs(record[record.size()-1].ax - ave.ax)>threshold_a){
+	if(fabs(record[record.size()-1].linear_acceleration.x - average.linear_acceleration.x)>threshold_a){
 		std::cout << "Moved-ax" << std::endl;
-		std::cout << "fabs(record[record.size()-1].ax - ave.ax) = " << fabs(record[record.size()-1].ax - ave.ax) << std::endl;
 		return true;
 	}
-	if(fabs(record[record.size()-1].ay - ave.ay)>threshold_a){
+	if(fabs(record[record.size()-1].linear_acceleration.y - average.linear_acceleration.y)>threshold_a){
 		std::cout << "Moved-ay" << std::endl;
 		return true;
 	}
-	if(fabs(record[record.size()-1].az - ave.az)>threshold_a){
+	if(fabs(record[record.size()-1].linear_acceleration.z - average.linear_acceleration.z)>threshold_a){
 		std::cout << "Moved-az" << std::endl;
 		return true;
 	}
@@ -284,134 +273,78 @@ bool judge_moving(void)
 
 void calculate_average(void)
 {
-	ave.wx = 0.0;
-	ave.wy = 0.0;
-	ave.wz = 0.0;
-	ave.ax = 0.0;
-	ave.ay = 0.0;
-	ave.az = 0.0;
+	average.angular_velocity.x = 0.0;
+	average.angular_velocity.y = 0.0;
+	average.angular_velocity.z = 0.0;
+	average.linear_acceleration.x = 0.0;
+	average.linear_acceleration.y = 0.0;
+	average.linear_acceleration.z = 0.0;
 	
 	for(size_t i=0;i<record.size();i++){
-		ave.wx += record[i].wx/(double)record.size();
-		ave.wy += record[i].wy/(double)record.size();
-		ave.wz += record[i].wz/(double)record.size();
-		ave.ax += record[i].ax/(double)record.size();
-		ave.ay += record[i].ay/(double)record.size();
-		ave.az += record[i].az/(double)record.size();
+		average.angular_velocity.x += record[i].angular_velocity.x/(double)record.size();
+		average.angular_velocity.y += record[i].angular_velocity.y/(double)record.size();
+		average.angular_velocity.z += record[i].angular_velocity.z/(double)record.size();
+		average.linear_acceleration.x += record[i].linear_acceleration.x/(double)record.size();
+		average.linear_acceleration.y += record[i].linear_acceleration.y/(double)record.size();
+		average.linear_acceleration.z += record[i].linear_acceleration.z/(double)record.size();
 	}
-	// graph_y.data = ave.wx;
 }
 
-Eigen::MatrixXd Acc_last(3, 1);
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 {
 	// std::cout << "imu_callback" << std::endl;
-	imu = *msg;
-	
-	// current_time = ros::Time::now();
-	// double dt = (current_time - last_time).toSec();
-	// last_time = current_time;
-	
-	Eigen::MatrixXd Acc_raw(3, 1);
-	Acc_raw <<	imu.angular_velocity.x,
-				imu.angular_velocity.y,
-				imu.angular_velocity.z;
-	if(record.size()==0)	Acc_last = Acc_raw;
-	const double lowpass_ratio = 0.8;
-	Eigen::MatrixXd Acc(3, 1);
-	Acc = lowpass_ratio*Acc + (1.0 - lowpass_ratio)*Acc_raw;
-	Acc_last = Acc;
+	if(record.size()==0)	time_started = ros::Time::now();
 
-	beginner_tutorials::imudata tmp;
-	tmp.wx = imu.angular_velocity.x;
-	tmp.wy = imu.angular_velocity.y;
-	tmp.wz = imu.angular_velocity.z;
-	tmp.ax = imu.linear_acceleration.x;
-	tmp.ay = imu.linear_acceleration.y;
-	tmp.az = imu.linear_acceleration.z;
-	record.push_back(tmp);
-	
+	record.push_back(*msg);
 	calculate_average();
-	const size_t record_size = 100;
-	if(record.size()>record_size){
-		record.erase(record.begin());
-		//calculate_average();
-		imu_is_moving = judge_moving();
-		if(!imu_is_moving){
-			prediction();
-			observation();
-		}
+	imu_is_moving = judge_moving();
+	
+	if(!imu_is_moving){
+		prediction();
+		observation();
 	}
-	// if(record.size()==record_size&&!imu_is_moving){
-	//	prediction();
-	//	observation();
+	
+	// const size_t record_size = 100;
+	// if(record_.size()>record_size){
+	// 	record_.erase(record_.begin());
+	// 	//calculate_average();
+	// 	imu_is_moving = judge_moving();
+	// 	if(!imu_is_moving){
+	// 		prediction();
+	// 		observation();
+	// 	}
 	// }
-	
-	
-	// graph_y.data = imu.linear_acceleration.x;
-	// const double alpha = 0.01;
-	// graph_y.data = alpha*imu.angular_velocity.x + (1.0-alpha)*graph_y.data;
-	graph_y.data = imu.angular_velocity.z;
-	// graph_y.data = Acc(0, 0);
 }
 
 int main(int argc, char**argv)
 {
-	ros::init(argc, argv, "imu_alignment");
+	ros::init(argc, argv, "imu_alignment_bias");
 	ros::NodeHandle nh;
-
-	// current_time = ros::Time::now();
-	// last_time = ros::Time::now();
 
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
 	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose", 1);
-	// ros::Publisher pub_bias = nh.advertise<beginner_tutorials::imudata>("/imu_bias", 1);
-	ros::Publisher pub_float = nh.advertise<std_msgs::Float64>("/graph_y", 10);
+	ros::Publisher pub_bias = nh.advertise<sensor_msgs::Imu>("/imu_bias", 1);
+	// ros::Publisher pub_float = nh.advertise<std_msgs::Float64>("/graph_y", 10);
 
 	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
-	// X(2, 0) = -M_PI/10.0;
-	std::cout << "X = " << std::endl << X << std::endl;
-	
 	P = 100.0*Eigen::MatrixXd::Identity(num_state, num_state);
-	std::cout << "P = " << std::endl << P << std::endl;
 
-	// fp = fopen("/home/amsl/Desktop/imu_alignment.csv", "w");
-
-	// int i = 0;
-	// while(ros::ok()&&!imu_is_moving){
-	// 	ros::spinOnce();
-	// 	pub_float.publish(graph_y);
-	// 	i++;
-	// 	if(i>2.0e+6)	break;
-	// }
-	//
-	// fclose(fp);
-	// input_initialpose();
-	// // input_bias();
-	//
-	// ros::Rate loop_rate(10);
-	// while(ros::ok()){
-	// 	if(inipose_is_available)	pub_inipose.publish(initial_pose);
-	// 	// pub_bias.publish(bias);
-	// 	loop_rate.sleep();
-	// }
-
-	int i = 0;
-	ros::Rate loop_rate(10);
 	while(ros::ok())
 	{
-		if(!inipose_is_available){
-			ros::spinOnce();
-			if(record.size()==100){
-				i++;
-				// if(i>100000)	input_initialpose();
-				if(imu_is_moving)   input_initialpose();
-				pub_float.publish(graph_y);
-			}
+		double time = (ros::Time::now() - time_started).toSec();
+		if(record.size()==0)	time = 0.0;
+		if(imu_is_moving || time>180.0){
+			input_initialpose();
+			std::cout << "break" << std::endl;
+			break;
 		}
-		else{
-			pub_inipose.publish(initial_pose);
-			loop_rate.sleep();
-		}
+		ros::spinOnce();
+	}
+	ros::Rate loop_rate(1);
+	while(ros::ok())
+	{
+		pub_inipose.publish(initial_pose);
+		pub_bias.publish(average);
+		loop_rate.sleep();
 	}
 }

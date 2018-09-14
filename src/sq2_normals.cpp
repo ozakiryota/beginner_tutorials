@@ -467,6 +467,15 @@ int main(int argc, char** argv)
 			g_vector->points.resize(1);
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals_before_clustering (new pcl::PointCloud<pcl::PointXYZINormal>);
 			pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals_after_clustering (new pcl::PointCloud<pcl::PointXYZINormal>);
+			
+			pcl::PointCloud<pcl::PointNormal>::Ptr g_last (new pcl::PointCloud<pcl::PointNormal>);
+			g_last->points.resize(1);
+			g_last->points[0].x = 0;
+			g_last->points[0].y = 0;
+			g_last->points[0].z = 1.0;
+			g_last->points[0].normal_x = g_local[0];
+			g_last->points[0].normal_y = g_local[1];
+			g_last->points[0].normal_z = g_local[2];
 
 
 			/*-----compute-----*/
@@ -486,14 +495,14 @@ int main(int argc, char** argv)
 			sensor_msgs::PointCloud2 roscloud_out;
 			pcl::toROSMsg(*cloud, roscloud_out);
 			// roscloud_out.header.frame_id = "/centerlaser";
-			roscloud_out.header.frame_id = "/odom3d";
+			roscloud_out.header.frame_id = "/odom3d_";
 			// roscloud_out.header.stamp = tm;
 			cloud_pub.publish(roscloud_out);
 
 			sensor_msgs::PointCloud2 rosnormals_out;
 			pcl::toROSMsg(*normals, rosnormals_out);
 			// rosnormals_out.header.frame_id = "/centerlaser";
-			rosnormals_out.header.frame_id = "/odom3d";
+			rosnormals_out.header.frame_id = "/odom3d_";
 			// rosnormals_out.header.stamp = tm;
 			normals_pub.publish(rosnormals_out);
 			
@@ -502,7 +511,7 @@ int main(int argc, char** argv)
 				sensor_msgs::PointCloud2 g_out;
 				pcl::toROSMsg(*g_vector, g_out);
 				// g_out.header.frame_id = "/centerlaser";
-				g_out.header.frame_id = "/odom3d";
+				g_out.header.frame_id = "/odom3d_";
 				g_pub.publish(g_out);
 			}
 
@@ -531,6 +540,11 @@ int main(int argc, char** argv)
 			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_after_clustering, 1, 0.2, "normals_after_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "normals_after_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, "normals_after_clustering");
+			
+			viewer.removePointCloud("g_last");
+			viewer.addPointCloudNormals<pcl::PointNormal>(g_last, 1, 0.03, "g_last");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.5, 0.5, "g_last");
+			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g_last");
 		}
 		ros::spinOnce();
 		viewer.spinOnce();

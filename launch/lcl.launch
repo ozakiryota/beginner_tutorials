@@ -11,9 +11,10 @@
 
 	<!--lcl-->
 	<node name="sq_lcl"  pkg="sadayne_pointcloud" type="sq_lcl">
-		<param name="save_num" type="int" value="50"/>
+		<!-- <param name="save_num" type="int" value="50"/> -->
+		<param name="save_num" type="int" value="40"/>
 		<remap from="/cloud" to="/cloud/tf" />
-		<remap from="/odom" to="/odom3d" />
-		<remap from="/base_link" to="/odom3d" />
+		<remap from="/odom" to="/odom3d_" />
+		<remap from="/base_link" to="/odom3d_" />
 	</node>
 </launch>

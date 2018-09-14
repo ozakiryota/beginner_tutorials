@@ -13,7 +13,8 @@
 	<include file="$(find beginner_tutorials)/launch/lcl.launch"/>
 
 	<!-- <node pkg="beginner_tutorials" name="imu_alignment" type="imu_alignment" output="screen"/> -->
-	<node pkg="beginner_tutorials" name="imu_alignment_simple" type="imu_alignment_simple" output="screen"/>
+	<!-- <node pkg="beginner_tutorials" name="imu_alignment_simple" type="imu_alignment_simple" output="screen"/> -->
+	<node pkg="beginner_tutorials" name="imu_alignment_bias" type="imu_alignment_bias" output="screen"/>
 
 	<group ns="imu_slam_walls">
 		<arg name="posemsg_name" default="/pose_imu_slam_walls"/>
@@ -21,7 +22,7 @@
 		<node pkg="beginner_tutorials" name="sq2_normals" type="sq2_normals">
 			<param name="LOOP_RATE" value="10.0"/>
 			<param name="SEARCH_RADIUS" value="0.5"/>
-			<param name="RANDOM_STEP_MAX" value="200"/>
+			<param name="RANDOM_STEP_MAX" value="300"/>
 			<param name="THRESHOLD_REF_POINTS" value="50"/>
 			<param name="THRESHOLD_ANGLE_FROM_G" value="30.0"/>
 			<param name="THRESHOLD_SUM_SQUARE_ERRORS" value="0.001"/>
@@ -37,7 +38,7 @@
 		<node pkg="beginner_tutorials" name="ekf" type="ekf" output="screen">
 			<param name="PUB_POSE_NAME" value="$(arg posemsg_name)"/>
 			<param name="USE_SLAM" value="true"/>
-			<param name="USE_WALLS" value="true"/>
+			<param name="USE_WALLS" value="false"/>
 		</node>
 
 		<!-- <node pkg="beginner_tutorials" name="tf_from_posemsg" type="tf_from_posemsg"> -->
@@ -72,7 +73,9 @@
 	<!-- <node pkg="beginner_tutorials" name="graph_imu.py" type="graph_imu.py"/> -->
 
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/2018&#45;05&#45;08&#45;19&#45;45&#45;05.bag"/> -->
-	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018-08-27-11-32-51.bag"/>
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018&#45;08&#45;27&#45;11&#45;32&#45;51.bag"/> -->
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018&#45;09&#45;13&#45;13&#45;13&#45;56.bag"/> -->
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018-09-14-14-34-50.bag"/>
 
 	<node pkg="rviz" type="rviz" name="rviz"/>
 </launch>
