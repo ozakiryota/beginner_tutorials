@@ -30,11 +30,16 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	double wx = msg->angular_velocity.x*dt;
 	double wy = msg->angular_velocity.y*dt;
 	double wz = msg->angular_velocity.z*dt;
-	// if(bias_is_available){
-	// 	wx -= bias.angular_velocity.x;
-	// 	wy -= bias.angular_velocity.y;
-	// 	wz -= bias.angular_velocity.z;
-	// }
+	if(bias_is_available){
+		wx -= bias.angular_velocity.x*dt;
+		wy -= bias.angular_velocity.y*dt;
+		wz -= bias.angular_velocity.z*dt;
+	}
+	else{
+		wx = 0.0;
+		wy = 0.0;
+		wz = 0.0;
+	}
 	q = tf::createQuaternionFromRPY(wx, wy, wz)*q;
 	quaternionTFToMsg(q, odom3d_now.pose.pose.orientation);
 

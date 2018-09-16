@@ -19,11 +19,13 @@ sensor_msgs::Imu imu;
 ros::Time current_time;
 ros::Time last_time;
 bool inipose_is_available = false;
+bool bias_is_available = false;
 const int num_state = 3;
 Eigen::MatrixXd X(num_state, 1);
 Eigen::MatrixXd P(num_state, num_state);
 // geometry_msgs::Quaternion pose_slam_last;
 tf::Quaternion q_predict(0.0, 0.0, 0.0, 1.0);
+sensor_msgs::Imu bias;
 /*getParam*/
 std::string PUB_POSE_NAME;
 bool USE_SLAM;
@@ -183,6 +185,7 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 
 		// std::cout << "K*Y = " << std::endl << K*Y << std::endl;
 		// std::cout << "P_obs_slam = " << std::endl << P << std::endl;
+		// std::cout << "X_obs_slam = " << std::endl << X << std::endl;
 	}
 	else{
 		q_last = q_now;
@@ -207,14 +210,20 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 
 void prediction(double dt)
 {
-	std::cout << "PREDICTION" << std::endl;
+	// std::cout << "PREDICTION" << std::endl;
 	double roll = X(0, 0);
 	double pitch = X(1, 0);
 	double yaw = X(2, 0);
 	double wx = imu.angular_velocity.x;
 	double wy = imu.angular_velocity.y;
 	double wz = imu.angular_velocity.z;
-	
+	if(bias_is_available){
+		// std::cout << "minus bias" << std::endl;
+		wx -= bias.angular_velocity.x;
+		wy -= bias.angular_velocity.y;
+		wz -= bias.angular_velocity.z;
+	}
+
 	Eigen::MatrixXd F(num_state, 1);
 	F <<	roll + (wx + sin(roll)*tan(pitch)*wy + cos(roll)*tan(pitch)*wz)*dt,
 	  		pitch + (cos(roll)*wy - sin(roll)*wz)*dt,
@@ -255,7 +264,8 @@ void prediction(double dt)
 	// if(X(2, 0)<-M_PI)	X(2, 0) += 2*M_PI;
 
 	// std::cout << "P_pre = " << std::endl << P << std::endl;
-	// std::cout << "F = " << std::endl << F << std::endl;
+	// std::cout << "X_pre = " << std::endl << X << std::endl;
+	// std::cout << "jF = " << std::endl << jF << std::endl;
 }
 
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
@@ -270,13 +280,22 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	if(inipose_is_available)	prediction(dt);
 }
 
+void callback_bias(const sensor_msgs::ImuConstPtr& msg)
+{   
+	// std::cout << "CALLBACK BIAS" << std::endl;
+	bias = *msg;
+	bias_is_available = true;
+}
+
 void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
 {
 	if(!inipose_is_available){
-		std::cout << "inipose_is_available" << std::endl;
 		tf::Quaternion tmp_q(msg->x, msg->y, msg->z, msg->w);
 		tf::Matrix3x3(tmp_q).getRPY(X(0, 0), X(1, 0), X(2, 0));
+		q_predict = tf::Quaternion(msg->x, msg->y, msg->z, msg->w);
 		inipose_is_available = true;
+		std::cout << "inipose_is_available = " << inipose_is_available << std::endl;
+		std::cout << "initial pose = " << std::endl << X << std::endl;
 	}
 }
 
@@ -296,6 +315,7 @@ int main(int argc, char**argv)
 	geometry_msgs::Pose pose;
 	
 	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 1, callback_inipose);
+	ros::Subscriber sub_bias = nh.subscribe("/imu_bias", 10, callback_bias);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1000, callback_imu);
 	ros::Subscriber sub_obs1 = nh.subscribe("/g_usingwalls", 10, callback_observation_usingwalls);
 	ros::Subscriber sub_obs2 = nh.subscribe("/lsd_slam/pose", 10, callback_observation_slam);

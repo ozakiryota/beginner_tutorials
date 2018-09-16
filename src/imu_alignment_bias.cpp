@@ -13,8 +13,8 @@
 #include <std_msgs/Float64.h>
 
 geometry_msgs::Quaternion initial_pose;
-beginner_tutorials::imudata ave;
-beginner_tutorials::imudata bias;
+// beginner_tutorials::imudata ave;
+// beginner_tutorials::imudata bias;
 bool imu_is_moving = false;
 const int num_state = 3;
 Eigen::MatrixXd X(num_state, 1);
@@ -33,6 +33,7 @@ void input_initialpose(void)
 	quaternionTFToMsg(q, initial_pose);
 	// inipose_is_available = true;
 	// initial_pose = imu.orientation;
+	std::cout << "initial pose = " << std::endl << X << std::endl;
 }
 
 Eigen::MatrixXd rotation(Eigen::MatrixXd X, double roll, double pitch, double yaw, bool global_to_local)
@@ -74,9 +75,9 @@ void observation_(void)
 
 	bool trans = false;
 
-	double ax = average.angular_velocity.x;
-	double ay = average.angular_velocity.y;
-	double az = average.angular_velocity.z;
+	double ax = average.linear_acceleration.x;
+	double ay = average.linear_acceleration.y;
+	double az = average.linear_acceleration.z;
 	double roll = X(0, 0);
 	double pitch = X(1, 0);
 	double yaw = X(2, 0);
@@ -174,9 +175,9 @@ void observation(void)
 {
 	const int num_obs = 3;	
 
-	double ax = average.angular_velocity.x;
-	double ay = average.angular_velocity.y;
-	double az = average.angular_velocity.z;
+	double ax = average.linear_acceleration.x;
+	double ay = average.linear_acceleration.y;
+	double az = average.linear_acceleration.z;
 	double roll = X(0, 0);
 	double pitch = X(1, 0);
 	double yaw = X(2, 0);
@@ -288,6 +289,7 @@ void calculate_average(void)
 		average.linear_acceleration.y += record[i].linear_acceleration.y/(double)record.size();
 		average.linear_acceleration.z += record[i].linear_acceleration.z/(double)record.size();
 	}
+	// graph_y.data = average.angular_velocity.z;
 }
 
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
@@ -324,7 +326,7 @@ int main(int argc, char**argv)
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
 	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose", 1);
 	ros::Publisher pub_bias = nh.advertise<sensor_msgs::Imu>("/imu_bias", 1);
-	// ros::Publisher pub_float = nh.advertise<std_msgs::Float64>("/graph_y", 10);
+	// ros::Publisher pub_graph = nh.advertise<std_msgs::Float64>("/graph_y", 10);
 
 	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
 	P = 100.0*Eigen::MatrixXd::Identity(num_state, num_state);
@@ -338,6 +340,7 @@ int main(int argc, char**argv)
 			std::cout << "break" << std::endl;
 			break;
 		}
+		// pub_graph.publish(graph_y);
 		ros::spinOnce();
 	}
 	ros::Rate loop_rate(1);
