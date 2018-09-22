@@ -17,6 +17,7 @@ bool first_callback_odom = true;
 bool first_callback_imu = true;
 sensor_msgs::Imu bias;
 bool bias_is_available = false;
+sensor_msgs::Imu imu_lowpass;
 
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 {
@@ -24,12 +25,25 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	time_now = ros::Time::now();
 	double dt = (time_now - time_last).toSec();
 	time_last = time_now;
-	if(first_callback_imu)	dt = 0.0;
+	// std::cout << "dt_" << dt << std::endl;
+	if(first_callback_imu){
+		dt = 0.0;
+		imu_lowpass = *msg;
+	}
+
+	const double ratio_lowpass = 1.0;
+	imu_lowpass.angular_velocity.x = ratio_lowpass*msg->angular_velocity.x + (1 - ratio_lowpass)*imu_lowpass.angular_velocity.x;
+	imu_lowpass.angular_velocity.y = ratio_lowpass*msg->angular_velocity.y + (1 - ratio_lowpass)*imu_lowpass.angular_velocity.y;
+	imu_lowpass.angular_velocity.z = ratio_lowpass*msg->angular_velocity.z + (1 - ratio_lowpass)*imu_lowpass.angular_velocity.z;
 
 	tf::Quaternion q(odom3d_now.pose.pose.orientation.x, odom3d_now.pose.pose.orientation.y, odom3d_now.pose.pose.orientation.z, odom3d_now.pose.pose.orientation.w);
 	double wx = msg->angular_velocity.x*dt;
 	double wy = msg->angular_velocity.y*dt;
 	double wz = msg->angular_velocity.z*dt;
+	wx = imu_lowpass.angular_velocity.x*dt;
+	wy = imu_lowpass.angular_velocity.y*dt;
+	wz = imu_lowpass.angular_velocity.z*dt;
+
 	if(bias_is_available){
 		wx -= bias.angular_velocity.x*dt;
 		wy -= bias.angular_velocity.y*dt;
@@ -41,7 +55,11 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		wz = 0.0;
 	}
 	q = tf::createQuaternionFromRPY(wx, wy, wz)*q;
+	q.normalize();
 	quaternionTFToMsg(q, odom3d_now.pose.pose.orientation);
+
+	/*for comparison*/
+	// odom3d_now.pose.pose.orientation = msg->orientation;
 
 	first_callback_imu = false;
 }

@@ -18,6 +18,12 @@ void callback_pose(const geometry_msgs::PoseConstPtr& msg)
 {
 	// std::cout << "CALLBACK POSE" << std::endl;
 	odom3d_now.pose.pose.orientation = msg->orientation;
+
+	// tf::Quaternion q_test(msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
+	// double r, p, y;
+	// tf::Matrix3x3(q_test).getRPY(r, p, y);
+	// q_test = tf::createQuaternionFromRPY(0.0, 0.0, y);
+	// quaternionTFToMsg(q_test, odom3d_now.pose.pose.orientation);
 }
 
 Eigen::MatrixXd frame_rotation(geometry_msgs::Quaternion q, Eigen::MatrixXd X, bool from_global_to_local)
@@ -88,8 +94,8 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "odom2dto3d_");
 	ros::NodeHandle nh;
 
-	ros::Subscriber sub_odom = nh.subscribe("/odom", 10, callback_odom);
-	ros::Subscriber sub_pose = nh.subscribe("/pose_imu_slam_walls", 10, callback_pose);
+	ros::Subscriber sub_odom = nh.subscribe("/odom", 1, callback_odom);
+	ros::Subscriber sub_pose = nh.subscribe("/pose_imu_slam_walls", 1, callback_pose);
 	ros::Publisher pub = nh.advertise<nav_msgs::Odometry>("/odom3d_", 1);
 
 	time_now = ros::Time::now();

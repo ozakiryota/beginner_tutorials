@@ -288,7 +288,20 @@ void calculate_average(void)
 		average.linear_acceleration.x += record[i].linear_acceleration.x/(double)record.size();
 		average.linear_acceleration.y += record[i].linear_acceleration.y/(double)record.size();
 		average.linear_acceleration.z += record[i].linear_acceleration.z/(double)record.size();
+		// average.angular_velocity.x += record[i].angular_velocity.x;
+		// average.angular_velocity.y += record[i].angular_velocity.y;
+		// average.angular_velocity.z += record[i].angular_velocity.z;
+		// average.linear_acceleration.x += record[i].linear_acceleration.x;
+		// average.linear_acceleration.y += record[i].linear_acceleration.y;
+		// average.linear_acceleration.z += record[i].linear_acceleration.z;
 	}
+	// average.angular_velocity.x/(double)record.size();
+	// average.angular_velocity.y/(double)record.size();
+	// average.angular_velocity.z/(double)record.size();
+	// average.linear_acceleration.x/(double)record.size();
+	// average.linear_acceleration.y/(double)record.size();
+	// average.linear_acceleration.z/(double)record.size();
+	
 	// graph_y.data = average.angular_velocity.z;
 }
 
@@ -323,7 +336,7 @@ int main(int argc, char**argv)
 	ros::init(argc, argv, "imu_alignment_bias");
 	ros::NodeHandle nh;
 
-	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 10, callback_imu);
+	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1, callback_imu);
 	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose", 1);
 	ros::Publisher pub_bias = nh.advertise<sensor_msgs::Imu>("/imu_bias", 1);
 	// ros::Publisher pub_graph = nh.advertise<std_msgs::Float64>("/graph_y", 10);
@@ -337,7 +350,7 @@ int main(int argc, char**argv)
 		if(record.size()==0)	time = 0.0;
 		if(imu_is_moving || time>180.0){
 			input_initialpose();
-			std::cout << "break" << std::endl;
+			// std::cout << "break" << std::endl;
 			break;
 		}
 		// pub_graph.publish(graph_y);

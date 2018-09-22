@@ -181,6 +181,10 @@ float angle_between_vectors(std::vector<float> v1, std::vector<float> v2)
 	v1_norm = sqrt(v1_norm);
 	v2_norm = sqrt(v2_norm);
 	// std::cout << "return angle" << std::endl;
+	if(fabs(acosf(dot_product/(v1_norm*v2_norm)))>M_PI){
+		std::cout << "fabs(acosf(dot_product/(v1_norm*v2_norm)))>M_PI" << std::endl;
+		exit(1);
+	}
 	return fabs(acosf(dot_product/(v1_norm*v2_norm)));
 }
 
@@ -314,6 +318,17 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 	while(ros::ok()){
 		i += rand_step(mt);
 		if(i>=cloud->points.size())	break;
+		
+		if(cloud->points[i].z>0.0 && cloud->points[i].z<0.35){
+			std::cout << ">> cloud->points[i].z is out of the range<, then skip" << std::endl;
+			continue;
+		}
+		
+		// const double threshold_height = 0.2;
+		// if(cloud->points[i].z<threshold_height){
+		// 	std::cout << ">> cloud->points[i].z< "<< threshold_height << ", then skip" << std::endl;
+		// 	continue;
+		// }
 
 		pcl::PointXYZ searchpoint;
 		searchpoint.x = cloud->points[i].x;
@@ -395,19 +410,28 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
 	std::cout << "-----CLOUD CALLBACK-----" << std::endl;
-	pcl::fromROSMsg(*msg, *cloud);
+	// pcl::fromROSMsg(*msg, *cloud);
+	
+	if(false){
+		pcl::PointCloud<pcl::PointXYZ>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZ>);
+		pcl::fromROSMsg(*msg, *tmp);
+		for(size_t i=0;i<tmp->points.size();i++){
+			if(tmp->points[i].z<0.0 || tmp->points[i].z>0.35)	cloud->points.push_back(tmp->points[i]);
+		}
+	}
+	else	pcl::fromROSMsg(*msg, *cloud);
 }
 
-Eigen::MatrixXd rotation(geometry_msgs::Quaternion q,  Eigen::MatrixXd X, bool from_local_to_global)
-{   
-	if(!from_local_to_global) q.w *= -1;
-	Eigen::MatrixXd Rot(3, 3);
-	Rot <<	q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,	2*(q.x*q.y - q.w*q.z),	2*(q.x*q.z +  q.w*q.y),
-			2*(q.x*q.y + q.w*q.z),	q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,	2*(q.y*q.z -  q.w*q.x),
-			2*(q.x*q.z - q.w*q.y),	2*(q.y*q.z + q.w*q.x),	q.w*q.w - q.x*q.x - q.y*q.y  + q.z*q.z;
-
+Eigen::MatrixXd frame_rotation(geometry_msgs::Quaternion q, Eigen::MatrixXd X, bool from_global_to_local)
+{
+	if(!from_global_to_local)    q.w *= -1;
+	Eigen::MatrixXd Rot(3, 3); 
+	Rot <<	q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,  2*(q.x*q.y + q.w*q.z),	2*(q.x*q.z - q.w*q.y),
+		2*(q.x*q.y - q.w*q.z),	q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,	2*(q.y*q.z + q.w*q.x),
+		2*(q.x*q.z + q.w*q.y),	2*(q.y*q.z - q.w*q.x),	q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z;
 	// std::cout << "Rot*X = " << std::endl << Rot*X << std::endl;
-	return	Rot*X;
+	if(from_global_to_local)    return Rot*X;
+	else    return Rot.inverse()*X;
 }
 
 void callback_pose(const geometry_msgs::PoseConstPtr& msg)
@@ -417,9 +441,11 @@ void callback_pose(const geometry_msgs::PoseConstPtr& msg)
 			 	0.0,
 				-9.80665;
 	Eigen::MatrixXd G_local(3, 1);
-	G_local = rotation(msg->orientation, G_global, false);
+	G_local = frame_rotation(msg->orientation, G_global, true);
 	g_local = {G_local(0, 0), G_local(1, 0), G_local(2, 0)};
+
 	// std::cout << "G_local = " << std::endl << G_local << std::endl;
+
 	g_local_is_available = true;
 }
 
@@ -447,13 +473,14 @@ int main(int argc, char** argv)
 
 	/*sub & pub*/
 	ros::Subscriber sub_pose = nh.subscribe(EST_POSEMSG_NAME, 1, callback_pose);
-	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 50, cloud_callback);
+	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
 	ros::Publisher g_pub = nh.advertise<sensor_msgs::PointCloud2>("/g_usingwalls",1);
 
 	pcl::visualization::PCLVisualizer viewer("Point Cloud Viewer");
 	viewer.setBackgroundColor(1, 1, 1);
+	viewer.addCoordinateSystem(0.5, "axis");
 
 	// ros::Rate loop_rate(LOOP_RATE);
 	while(ros::ok()){

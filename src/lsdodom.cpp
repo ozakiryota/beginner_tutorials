@@ -54,6 +54,14 @@ void callback_odom(const nav_msgs::OdometryConstPtr& msg)
 	// std::cout << "Local2d = " << std::endl << Local2d << std::endl;
 	// std::cout << "Global3d = " << std::endl << Global3d << std::endl;
 
+	/*for test*/
+	// tf::Quaternion q_now(odom3d_now.pose.pose.orientation.x, odom3d_now.pose.pose.orientation.y, odom3d_now.pose.pose.orientation.z, odom3d_now.pose.pose.orientation.w);
+	// tf::Quaternion q_last(odom3d_last.pose.pose.orientation.x, odom3d_last.pose.pose.orientation.y, odom3d_last.pose.pose.orientation.z, odom3d_last.pose.pose.orientation.w);
+	// tf::Quaternion test = q_last.inverse()*q_last*q_now;
+	// test.normalize();
+	// quaternionTFToMsg(test, odom3d_now.pose.pose.orientation);
+	// std::cout << "odom3d_now.pose.pose.orientation = " << std::endl << odom3d_now.pose.pose.orientation << std::endl;
+
 	odom2d_last = odom2d_now;
 	odom3d_last = odom3d_now;
 	

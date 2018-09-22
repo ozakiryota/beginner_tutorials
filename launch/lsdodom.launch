@@ -1,7 +1,8 @@
 <launch>
-	<node pkg="beginner_tutorials" name="lsdodom" type="lsdodom"/>
+	<node pkg="beginner_tutorials" name="lsdodom" type="lsdodom" output="screen"/>
 	<node pkg="beginner_tutorials" name="odom2dto3d" type="odom2dto3d"/>
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018&#45;08&#45;27&#45;11&#45;32&#45;51.bag"/> -->
-	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018-09-13-13-13-56.bag"/>
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018&#45;09&#45;13&#45;13&#45;13&#45;56.bag"/> -->
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018-09-14-14-34-50.bag"/>
 	<node pkg="rviz" type="rviz" name="rviz"/>
 </launch>

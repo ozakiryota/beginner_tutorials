@@ -30,8 +30,10 @@ ros::Time current_time;
 ros::Time last_time;
 // std::vector<beginner_tutorials::imudata> record;
 // IMUDATA bias_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-beginner_tutorials::imudata bias;
-FILE* fp;
+// beginner_tutorials::imudata bias;
+sensor_msgs::Imu bias;
+bool bias_is_available = false;
+// FILE* fp;
 std_msgs::Float64 graph_y;
 
 // void rotation_(geometry_msgs::Quaternion q, Eigen::MatrixXf X, bool from_local_to_global)
@@ -116,6 +118,13 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		double wx = imu.angular_velocity.x*dt;
 		double wy = imu.angular_velocity.y*dt;
 		double wz = imu.angular_velocity.z*dt;
+		if(bias_is_available){
+			// std::cout << "minus bias" << std::endl;
+			wx -= bias.angular_velocity.x*dt;
+			wy -= bias.angular_velocity.y*dt;
+			wz -= bias.angular_velocity.z*dt;
+		}
+
 		q = tf::createQuaternionFromRPY(wx, wy, wz)*q;
 		quaternionTFToMsg(q, odom.pose.pose.orientation);
 		
@@ -196,7 +205,7 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		// odom.pose.pose.position.y += V(1, 0)*dt - bias.ay;
 		// odom.pose.pose.position.z += V(2, 0)*dt - bias.az;
 		
-		fprintf(fp, "%f\t%f\t%f\n", -imu.linear_acceleration.x, Acc(0, 0), V(0, 0));
+		// fprintf(fp, "%f\t%f\t%f\n", -imu.linear_acceleration.x, Acc(0, 0), V(0, 0));
 
 		static tf::TransformBroadcaster broadcaster;
 		geometry_msgs::TransformStamped transform;
@@ -217,11 +226,18 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 	// imu_last = imu;
 }
 
-void callback_bias(const beginner_tutorials::imudataConstPtr& msg)
-{
+// void callback_bias(const beginner_tutorials::imudataConstPtr& msg)
+// {
+// 	// std::cout << "CALLBACK BIAS" << std::endl;
+// 	bias = *msg;
+// 	std::cout << "bias = " << std::endl << bias << std::endl;
+// }
+
+void callback_bias(const sensor_msgs::ImuConstPtr& msg)
+{ 
 	// std::cout << "CALLBACK BIAS" << std::endl;
 	bias = *msg;
-	std::cout << "bias = " << std::endl << bias << std::endl;
+	bias_is_available = true;
 }
 
 void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
@@ -319,10 +335,11 @@ int main(int argc, char** argv)
 	local_nh.getParam("PARENT_FRAME", PARENT_FRAME);
 	
 	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 1, callback_inipose);
-	ros::Subscriber sub_bias = nh.subscribe("/imu_bias", 1, callback_bias);
+	// ros::Subscriber sub_bias = nh.subscribe("/imu_bias", 1, callback_bias);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1, callback_imu);
 	ros::Publisher pub_odom = nh.advertise<nav_msgs::Odometry>("/imu_odom", 1);
 	ros::Publisher pub_float = nh.advertise<std_msgs::Float64>("/graph_y", 10);
+	ros::Subscriber sub_bias = nh.subscribe("/imu_bias", 10, callback_bias);
 
 	current_time = ros::Time::now();
 	last_time = ros::Time::now();
@@ -330,7 +347,7 @@ int main(int argc, char** argv)
 			0.0,
 			0.0;
 
-	fp = fopen("/home/amsl/Desktop/imudata.csv", "w");
+	// fp = fopen("/home/amsl/Desktop/imudata.csv", "w");
 
 	// ros::Rate loop_rate(10);
 	while(ros::ok()){
@@ -340,5 +357,5 @@ int main(int argc, char** argv)
 		ros::spinOnce();
 		// loop_rate.sleep();
 	}
-	fclose(fp);
+	// fclose(fp);
 }
