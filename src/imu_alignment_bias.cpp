@@ -356,7 +356,7 @@ int main(int argc, char**argv)
 		// pub_graph.publish(graph_y);
 		ros::spinOnce();
 	}
-	ros::Rate loop_rate(1);
+	ros::Rate loop_rate(10);
 	while(ros::ok())
 	{
 		pub_inipose.publish(initial_pose);

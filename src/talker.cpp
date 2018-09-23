@@ -11,7 +11,7 @@ int main(int argc, char**argv)
 	ros::init(argc, argv, "talker");
 	ros::NodeHandle nh;
 
-	ros::Publisher pub = nh.advertise<std_msgs::Float64>("/graph_y", 1);
+	ros::Publisher pub = nh.advertise<std_msgs::Float64>("/graphmsg", 1);
 	
 	std_msgs::Float64 msg;
 	

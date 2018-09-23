@@ -105,9 +105,12 @@ int main(int argc, char** argv)
 	initialize_odom(odom3d_last);
 	initialize_odom(odom3d_now);
 
+	ros::Rate loop_rate(10);
 	while(ros::ok()){
 		ros::spinOnce();
 		pub.publish(odom3d_now);
 		broadcast_tf();
+
+		loop_rate.sleep();
 	}
 }

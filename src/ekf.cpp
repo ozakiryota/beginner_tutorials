@@ -158,7 +158,7 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 		double roll, pitch, yaw;
 		// double roll_, pitch_, yaw_;
 		tf::Matrix3x3(q_now*q_last.inverse()*x_last).getRPY(roll, pitch, yaw);	//planA
-		tf::Matrix3x3(q_now).getRPY(roll, pitch, yaw);			//planB
+		// tf::Matrix3x3(q_now).getRPY(roll, pitch, yaw);			//planB
 		// tf::Matrix3x3(q_last).getRPY(roll_, pitch_, yaw_);
 
 		Eigen::MatrixXd Z(num_obs, 1);
@@ -352,6 +352,7 @@ int main(int argc, char**argv)
 	
 	while(ros::ok()){
 		ros::spinOnce();
+		
 		input_pose(pose, X);
 		pub_pose.publish(pose);
 
