@@ -111,7 +111,7 @@ int main(int argc, char** argv)
 	initialize_odom(odom3d_last);
 	initialize_odom(odom3d_now);
 
-	ros::Rate loop_rate(10);
+	ros::Rate loop_rate(100);
 	while(ros::ok()){
 		ros::spinOnce();
 		pub.publish(odom3d_now);

@@ -90,7 +90,7 @@ void callback_observation_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg
 				0,	0,	1;
 
 		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 1.0e-1;
+		const double sigma = 1.0e-5;
 		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(num_obs, 1);
@@ -132,9 +132,11 @@ Eigen::MatrixXd X_last(num_state, 1);
 int count_slam = 0;
 void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 {
+	// std::cout << "CALLBACK OBSERVATION SLAM" << std::endl;
 	const int num_obs = 3;
 
 	tf::Quaternion q_now(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
+	q_now.normalize();
 	// if(!inipose_is_available){
 	// 	q_last = q_now;
 	// 	X_last = X;
@@ -142,8 +144,8 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 	const int delay = 0;
 	if(inipose_is_available)	count_slam++;
 	// if(!inipose_is_available)	pose_slam_last = msg->pose.orientation;
-	// if(USE_SLAM && inipose_is_available && count_slam>100){
-	if(USE_SLAM && inipose_is_available && count_slam>delay){
+	if(USE_SLAM && inipose_is_available){
+	// if(USE_SLAM && inipose_is_available && count_slam>delay){
 		if(count_slam==delay+1)	std::cout << "FIRST CALLBACK OBSERVATION SLAM" << std::endl;
 		// std::cout << "CALLBACK OBSERVATION SLAM" << std::endl;
 		// tf::Quaternion q_now(msg->pose.orientation.z, -msg->pose.orientation.x, -msg->pose.orientation.y, msg->pose.orientation.w);
@@ -154,12 +156,20 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 		// tf::Quaternion x_now = tf::createQuaternionFromRPY(X(0, 0), X(1, 0), X(2, 0));
 		tf::Quaternion x_last = tf::createQuaternionFromRPY(X_last(0, 0), X_last(1, 0), X_last(2, 0));
 		
-		q_now = q_now.normalize();
+		tf::Quaternion q_obs = x_last*(q_now*q_last.inverse());
+		// q_obs.normalize();
+
 		double roll, pitch, yaw;
+		tf::Matrix3x3(q_obs.normalized()).getRPY(roll, pitch, yaw);
+
 		// double roll_, pitch_, yaw_;
-		tf::Matrix3x3(q_now*q_last.inverse()*x_last).getRPY(roll, pitch, yaw);	//planA
+		// tf::Matrix3x3((q_now*q_last.inverse())*x_last).getRPY(roll, pitch, yaw);	//planA
+		// tf::Matrix3x3(x_last*(q_last.inverse()*q_now)).getRPY(roll, pitch, yaw);
 		// tf::Matrix3x3(q_now).getRPY(roll, pitch, yaw);			//planB
 		// tf::Matrix3x3(q_last).getRPY(roll_, pitch_, yaw_);
+		
+		q_last = q_now;
+		X_last = X;
 
 		Eigen::MatrixXd Z(num_obs, 1);
 		Z <<	roll,
@@ -168,9 +178,6 @@ void callback_observation_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 		// Z <<	X_last(0, 0) + (roll - roll_),
 		// 		X_last(1, 0) + (pitch - pitch_),
 		// 		X_last(2, 0) + (yaw - yaw_);
-		q_last = q_now;
-		X_last = X;
-		
 		Eigen::MatrixXd H(num_obs, num_state);
 		H <<	1,	0,	0,
 				0,	1,	0,
@@ -276,16 +283,23 @@ void prediction(double dt)
 	P = jF*P*jF.transpose() + Q;
 	
 	/*誤差対策*/
-	q_predict = tf::createQuaternionFromRPY(wx*dt, wy*dt, wz*dt)*tf::createQuaternionFromRPY(roll, pitch, yaw);
-	q_predict.normalize();
-	tf::Matrix3x3(q_predict).getRPY(X(0, 0), X(1, 0), X(2, 0));
+	// q_predict = tf::createQuaternionFromRPY(roll, pitch, yaw)*tf::createQuaternionFromRPY(wx*dt, wy*dt, wz*dt);
+	// q_predict.normalize();
+	// tf::Matrix3x3(q_predict).getRPY(X(0, 0), X(1, 0), X(2, 0));
 
-	// if(X(0, 0)>M_PI)	X(0, 0) -= 2*M_PI;
-	// if(X(0, 0)<-M_PI)	X(0, 0) += 2*M_PI;
-	// if(X(1, 0)>M_PI)	X(1, 0) -= 2*M_PI;
-	// if(X(1, 0)<-M_PI)	X(1, 0) += 2*M_PI;
-	// if(X(2, 0)>M_PI)	X(2, 0) -= 2*M_PI;
-	// if(X(2, 0)<-M_PI)	X(2, 0) += 2*M_PI;
+	// if(X(0, 0)>M_PI)	std::cout << "X(0, 0)>M_PI" << std::endl;
+	// if(X(0, 0)<-M_PI)	std::cout << "X(0, 0)<-M_PI" << std::endl;
+	// if(X(1, 0)>M_PI)	std::cout << "X(1, 0)>M_PI" << std::endl;
+	// if(X(1, 0)<-M_PI)	std::cout << "X(1, 0)<-M_PI" << std::endl;
+	// if(X(2, 0)>M_PI)	std::cout << "X(2, 0)>M_PI" << std::endl;
+	// if(X(2, 0)<-M_PI)	std::cout << "X(2, 0)<-M_PI" << std::endl;
+	
+	if(X(0, 0)>M_PI)	X(0, 0) -= 2*M_PI;
+	if(X(0, 0)<-M_PI)	X(0, 0) += 2*M_PI;
+	if(X(1, 0)>M_PI)	X(1, 0) -= 2*M_PI;
+	if(X(1, 0)<-M_PI)	X(1, 0) += 2*M_PI;
+	if(X(2, 0)>M_PI)	X(2, 0) -= 2*M_PI;
+	if(X(2, 0)<-M_PI)	X(2, 0) += 2*M_PI;
 
 	// std::cout << "P_pre = " << std::endl << P << std::endl;
 	// std::cout << "X_pre = " << std::endl << X << std::endl;
@@ -294,7 +308,7 @@ void prediction(double dt)
 
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 {
-	// std::cout << "imu_callback" << std::endl;
+	// std::cout << "CALLBACK IMU" << std::endl;
 	imu = *msg;
 
 	current_time = ros::Time::now();
@@ -345,19 +359,23 @@ int main(int argc, char**argv)
 	ros::Subscriber sub_obs1 = nh.subscribe("/g_usingwalls", 1, callback_observation_usingwalls);
 	ros::Subscriber sub_obs2 = nh.subscribe("/lsd_slam/pose", 1, callback_observation_slam);
 	ros::Publisher pub_pose = nh.advertise<geometry_msgs::Pose>(PUB_POSE_NAME, 1);
-	ros::Publisher pub_graph = nh.advertise<std_msgs::Float64>("/graphmsg", 1);
+	// ros::Publisher pub_graph = nh.advertise<std_msgs::Float64>("/graphmsg", 1);
 
 	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
 	P = 100.0*Eigen::MatrixXd::Identity(num_state, num_state);
-	
+
+	ros::Rate loop_rate(200);
 	while(ros::ok()){
+		// std::cout << "loop" << std::endl;
 		ros::spinOnce();
 		
 		input_pose(pose, X);
 		pub_pose.publish(pose);
 
-		std_msgs::Float64 graphmsg;
-		graphmsg.data = X(0, 0);
-		pub_graph.publish(graphmsg);
+		// std_msgs::Float64 graphmsg;
+		// graphmsg.data = X(1, 0);
+		// pub_graph.publish(graphmsg);
+
+		loop_rate.sleep();
 	}
 }

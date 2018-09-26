@@ -19,7 +19,6 @@ bool imu_is_moving = false;
 const int num_state = 3;
 Eigen::MatrixXd X(num_state, 1);
 Eigen::MatrixXd P(num_state, num_state);
-std_msgs::Float64 graph_y;
 
 std::vector<sensor_msgs::Imu> record;
 sensor_msgs::Imu average;
@@ -166,9 +165,6 @@ void observation_(void)
 	
 	// fprintf(fp, "%f\t%f\t%f\n", Y(0, 0), Y(1, 0), Y(2, 0));
 	// fprintf(fp, "%f\t%f\t%f\n", imu.linear_acceleration.x, imu.linear_acceleration.y, imu.linear_acceleration.z);
-	
-
-	// graph_y.data = P(0, 0);
 }
 
 void observation(void)
@@ -199,7 +195,7 @@ void observation(void)
 
 	std::random_device rnd;
 	std::mt19937 engine(rnd());
-	const double sigma = 1.0e-4;
+	const double sigma = 1.0e-1;
 	std::normal_distribution<double> dist(0.0, sigma);
 	// std::cout << "obs_dist(engine) = " << dist(engine) << std::endl;
 	Eigen::MatrixXd R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
@@ -215,10 +211,6 @@ void observation(void)
 	P = (I - K*jH)*P;
 
 	// std::cout << "K*Y = " << std::endl << K*Y << std::endl;
-	
-	
-	// graph_y.data = X(0, 0);
-	// graph_y.data = X(0, 0);
 }
 	
 void prediction(void)
@@ -229,7 +221,7 @@ void prediction(void)
 	
 	std::random_device rnd;
 	std::mt19937 engine(rnd());
-	const double sigma = 1.0e-3;
+	const double sigma = 1.0e-1;
 	std::normal_distribution<double> dist(0.0, sigma);
 	// std::cout << "pre_dist(engine) = " << dist(engine) << std::endl;
 	Eigen::MatrixXd Q = sigma*Eigen::MatrixXd::Identity(num_state, num_state);
@@ -282,27 +274,25 @@ void calculate_average(void)
 	average.linear_acceleration.z = 0.0;
 	
 	for(size_t i=0;i<record.size();i++){
-		average.angular_velocity.x += record[i].angular_velocity.x/(double)record.size();
-		average.angular_velocity.y += record[i].angular_velocity.y/(double)record.size();
-		average.angular_velocity.z += record[i].angular_velocity.z/(double)record.size();
-		average.linear_acceleration.x += record[i].linear_acceleration.x/(double)record.size();
-		average.linear_acceleration.y += record[i].linear_acceleration.y/(double)record.size();
-		average.linear_acceleration.z += record[i].linear_acceleration.z/(double)record.size();
-		// average.angular_velocity.x += record[i].angular_velocity.x;
-		// average.angular_velocity.y += record[i].angular_velocity.y;
-		// average.angular_velocity.z += record[i].angular_velocity.z;
-		// average.linear_acceleration.x += record[i].linear_acceleration.x;
-		// average.linear_acceleration.y += record[i].linear_acceleration.y;
-		// average.linear_acceleration.z += record[i].linear_acceleration.z;
+		// average.angular_velocity.x += record[i].angular_velocity.x/(double)record.size();
+		// average.angular_velocity.y += record[i].angular_velocity.y/(double)record.size();
+		// average.angular_velocity.z += record[i].angular_velocity.z/(double)record.size();
+		// average.linear_acceleration.x += record[i].linear_acceleration.x/(double)record.size();
+		// average.linear_acceleration.y += record[i].linear_acceleration.y/(double)record.size();
+		// average.linear_acceleration.z += record[i].linear_acceleration.z/(double)record.size();
+		average.angular_velocity.x += record[i].angular_velocity.x;
+		average.angular_velocity.y += record[i].angular_velocity.y;
+		average.angular_velocity.z += record[i].angular_velocity.z;
+		average.linear_acceleration.x += record[i].linear_acceleration.x;
+		average.linear_acceleration.y += record[i].linear_acceleration.y;
+		average.linear_acceleration.z += record[i].linear_acceleration.z;
 	}
-	// average.angular_velocity.x/(double)record.size();
-	// average.angular_velocity.y/(double)record.size();
-	// average.angular_velocity.z/(double)record.size();
-	// average.linear_acceleration.x/(double)record.size();
-	// average.linear_acceleration.y/(double)record.size();
-	// average.linear_acceleration.z/(double)record.size();
-	
-	// graph_y.data = average.angular_velocity.z;
+	average.angular_velocity.x /=(double)record.size();
+	average.angular_velocity.y /= (double)record.size();
+	average.angular_velocity.z /= (double)record.size();
+	average.linear_acceleration.x /= (double)record.size();
+	average.linear_acceleration.y /= (double)record.size();
+	average.linear_acceleration.z /= (double)record.size();
 }
 
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
@@ -318,16 +308,11 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		prediction();
 		observation();
 	}
-	
-	// const size_t record_size = 100;
-	// if(record_.size()>record_size){
-	// 	record_.erase(record_.begin());
-	// 	//calculate_average();
-	// 	imu_is_moving = judge_moving();
-	// 	if(!imu_is_moving){
-	// 		prediction();
-	// 		observation();
-	// 	}
+
+	// const int datasize = 6000;
+	// if(record.size()>datasize){
+	// 	std::cout << "record.size()>" << datasize << std::endl;
+	// 	record.erase(record.begin());
 	// }
 }
 
@@ -339,24 +324,31 @@ int main(int argc, char**argv)
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1, callback_imu);
 	ros::Publisher pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose", 1);
 	ros::Publisher pub_bias = nh.advertise<sensor_msgs::Imu>("/imu_bias", 1);
-	// ros::Publisher pub_graph = nh.advertise<std_msgs::Float64>("/graph_y", 10);
+	ros::Publisher pub_graph = nh.advertise<std_msgs::Float64>("/graphmsg", 1);
 
 	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
 	P = 100.0*Eigen::MatrixXd::Identity(num_state, num_state);
 
+	// ros::Rate loop_rate(200);
 	while(ros::ok())
 	{
 		double time = (ros::Time::now() - time_started).toSec();
 		if(record.size()==0)	time = 0.0;
-		if(imu_is_moving || time>180.0){
+		const double timelimit = 180.0;
+		if(imu_is_moving || time>timelimit){
+			if(time>timelimit)	std::cout << "time > " << timelimit << "[s]" << std::endl;
 			input_initialpose();
-			// std::cout << "break" << std::endl;
 			break;
 		}
-		// pub_graph.publish(graph_y);
+		std_msgs::Float64 graphmsg;
+		graphmsg.data = average.angular_velocity.y;
+		pub_graph.publish(graphmsg);
+		
 		ros::spinOnce();
+
+		// loop_rate.sleep();
 	}
-	ros::Rate loop_rate(10);
+	ros::Rate loop_rate(1);
 	while(ros::ok())
 	{
 		pub_inipose.publish(initial_pose);

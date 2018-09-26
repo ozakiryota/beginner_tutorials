@@ -451,7 +451,7 @@ void callback_pose(const geometry_msgs::PoseConstPtr& msg)
 
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "pc_normal");
+	ros::init(argc, argv, "sq2_normals");
 	ros::NodeHandle nh;
 	ros::NodeHandle local_nh("~");
 	
@@ -472,7 +472,7 @@ int main(int argc, char** argv)
 	local_nh.getParam("EST_POSEMSG_NAME", EST_POSEMSG_NAME);
 
 	/*sub & pub*/
-	ros::Subscriber sub_pose = nh.subscribe(EST_POSEMSG_NAME, 1, callback_pose);
+	ros::Subscriber sub_pose = nh.subscribe("/pose_doubleekf", 1, callback_pose);
 	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
