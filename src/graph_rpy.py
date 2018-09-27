@@ -31,7 +31,7 @@ def callback(msg):
 def graph():
     print('graph_rpy')
     rospy.init_node('graph_rpy', anonymous=True)
-    rospy.Subscriber("/pose_doubleekf", Pose, callback)
+    rospy.Subscriber("/pose_dualekf", Pose, callback)
     
     t = [0 for i in range(50)]
     roll = [0 for j in range(50)]

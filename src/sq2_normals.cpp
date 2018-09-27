@@ -522,14 +522,14 @@ int main(int argc, char** argv)
 			sensor_msgs::PointCloud2 roscloud_out;
 			pcl::toROSMsg(*cloud, roscloud_out);
 			// roscloud_out.header.frame_id = "/centerlaser";
-			roscloud_out.header.frame_id = "/odom3d";
+			roscloud_out.header.frame_id = "/odom3d_with_posemsg";
 			// roscloud_out.header.stamp = tm;
 			cloud_pub.publish(roscloud_out);
 
 			sensor_msgs::PointCloud2 rosnormals_out;
 			pcl::toROSMsg(*normals, rosnormals_out);
 			// rosnormals_out.header.frame_id = "/centerlaser";
-			rosnormals_out.header.frame_id = "/odom3d";
+			rosnormals_out.header.frame_id = "/odom3d_with_posemsg";
 			// rosnormals_out.header.stamp = tm;
 			normals_pub.publish(rosnormals_out);
 			
@@ -538,7 +538,7 @@ int main(int argc, char** argv)
 				sensor_msgs::PointCloud2 g_out;
 				pcl::toROSMsg(*g_vector, g_out);
 				// g_out.header.frame_id = "/centerlaser";
-				g_out.header.frame_id = "/odom3d";
+				g_out.header.frame_id = "/odom3d_with_posemsg";
 				g_pub.publish(g_out);
 			}
 
