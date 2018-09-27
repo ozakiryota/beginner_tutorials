@@ -45,16 +45,16 @@ def graph():
     plt.title("roll")
     plt.xlabel("time[s]")
     plt.ylabel("roll[deg]")
-    plt.ylim(-20, 20)
+    plt.ylim(-10, 10)
     plt.grid(True)
     li_r, = plt.plot(t, roll)
 
-    ### roll ###
+    ### pitch ###
     plt.subplot(2, 1, 2)
     plt.title("pitch")
     plt.xlabel("time[s]")
     plt.ylabel("pitch[deg]")
-    plt.ylim(-20, 20)
+    plt.ylim(-10, 10)
     plt.grid(True)
     li_p, = plt.plot(t, pitch)
     

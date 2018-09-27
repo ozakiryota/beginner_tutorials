@@ -29,6 +29,7 @@ Eigen::MatrixXd Pmain(num_state, num_state);
 ros::Time time_now;
 ros::Time time_last;
 int count_usingwalls = 0;
+int count_observation_main = 0;
 tf::Quaternion q_slam_now;
 tf::Quaternion q_slam_last;
 
@@ -86,6 +87,13 @@ void observation_main(void)
 	K = Pmain*jH.transpose()*S.inverse();
 	Xmain = Xmain + K*Y;
 	Pmain = (I - K*jH)*Pmain;
+
+	count_observation_main++;
+	if(count_observation_main%500==0){
+		std::cout << count_observation_main << ": OBSERVATION MAIN" << std::endl;
+		std::cout << "Y = " << std::endl << Y << std::endl;
+		std::cout << "K*Y = " << K*Y << std::endl;
+	}
 }
 
 void callback_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
@@ -122,7 +130,7 @@ void callback_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
 				0,	0,	1;
 
 		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 1.0e-0;
+		const double sigma = 1.0e-1;
 		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(num_obs, 1);

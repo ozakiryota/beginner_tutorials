@@ -320,7 +320,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 		if(i>=cloud->points.size())	break;
 		
 		if(cloud->points[i].z>0.0 && cloud->points[i].z<0.35){
-			std::cout << ">> cloud->points[i].z is out of the range<, then skip" << std::endl;
+			std::cout << ">> cloud->points[i].z is out of the range, then skip" << std::endl;
 			continue;
 		}
 		
@@ -337,21 +337,21 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 
 		// std::cout << "start finding kdtree" <<  std::endl;
 		std::vector<int> indices = kdtree_search(cloud, searchpoint);
-		std::cout << "indices.size() = " << indices.size() << std::endl;
+		// std::cout << "indices.size() = " << indices.size() << std::endl;
 		if(indices.size()<THRESHOLD_REF_POINTS){
-			std::cout << ">> indices.size()< "<< THRESHOLD_REF_POINTS << ", then skip" << std::endl;
+			std::cout << ">> indices.size() = " << indices.size() << " < " << THRESHOLD_REF_POINTS << ", then skip" << std::endl;
 			continue;
 		}
 
 		Eigen::Vector4f plane_parameters;
 		pcl::computePointNormal(*cloud, indices, plane_parameters, curvature);
+		std::cout << "curvature = " << curvature << std::endl;
 		std::vector<float> tmp_vector = {plane_parameters[0], plane_parameters[1], plane_parameters[2]};
 		float tmp_ang_from_g_local = angle_between_vectors(tmp_vector, g_local);
 		if(tmp_ang_from_g_local<THRESHOLD_ANGLE_FROM_G/180.0*M_PI || tmp_ang_from_g_local>(M_PI-THRESHOLD_ANGLE_FROM_G/180.0*M_PI)){
 			std::cout << ">> tmp_ang_from_g_local is too small or large, then skip" << std::endl;
 			continue;
 		}
-		std::cout << "OK" << std::endl;
 		
 		// std::cout << "start caluculating square_error" <<  std::endl;
 		float sum_square_error = 0.0;
@@ -375,8 +375,9 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 		// std::cout << "curvature = " << plane_parameters[3] << std::endl;
 		// const float sum_square_error_threshold = 0.1;
 		
-		if(sum_square_error>THRESHOLD_SUM_SQUARE_ERRORS)	std::cout << ">> sum_square_error is too large, then skip" << std::endl;
+		if(sum_square_error>THRESHOLD_SUM_SQUARE_ERRORS)	std::cout << ">> sum_square_error = " << sum_square_error << " > " << THRESHOLD_SUM_SQUARE_ERRORS << ", then skip" << std::endl;
 		else{
+			std::cout << "OK, sum_square_error = " << sum_square_error << std::endl;
 			pcl::PointXYZINormal tmp_normal;
 			tmp_normal.x = cloud->points[i].x;
 			tmp_normal.y = cloud->points[i].y;
@@ -549,7 +550,7 @@ int main(int argc, char** argv)
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 
 			viewer.removePointCloud("normals");
-			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals_flipped, 1, 0.2, "normals");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals_flipped, 1, 0.5, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals");
 			
