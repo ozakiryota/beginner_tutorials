@@ -35,7 +35,9 @@ void callback_odom(const nav_msgs::OdometryConstPtr& msg)
 	time_now = ros::Time::now();
 	double dt = (time_now - time_last).toSec();
 	time_last = time_now;
-	
+
+	odom_now.twist = msg->twist;
+
 	if(first_callback_odom){
 		dt = 0.0;
 		odom_last = odom_now;
@@ -63,7 +65,7 @@ void broadcast_tf(void)
     geometry_msgs::TransformStamped transform;
 	transform.header.stamp = ros::Time::now();
 	transform.header.frame_id = "/odom";
-	transform.child_frame_id = "/odom3d__";
+	transform.child_frame_id = "/odom3d";
 	transform.transform.translation.x = odom_now.pose.pose.position.x;
 	transform.transform.translation.y = odom_now.pose.pose.position.y;
 	transform.transform.translation.z = odom_now.pose.pose.position.z;
@@ -74,7 +76,7 @@ void broadcast_tf(void)
 void initialize_odom(nav_msgs::Odometry& odom)
 {
 	odom.header.frame_id = "/odom";
-	odom.child_frame_id = "/odom3d__";
+	odom.child_frame_id = "/odom3d";
 	odom.pose.pose.position.x = 0.0;
 	odom.pose.pose.position.y = 0.0;
 	odom.pose.pose.position.z = 0.0;
@@ -91,8 +93,8 @@ int main(int argc, char** argv)
 
 	ros::Subscriber sub_odom = nh.subscribe("/odom", 1, callback_odom);
 	// ros::Subscriber sub_pose = nh.subscribe("/pose_imu_slam_walls", 1, callback_pose);
-	ros::Subscriber sub_pose = nh.subscribe("/pose_doubleekf", 1, callback_pose);
-	ros::Publisher pub = nh.advertise<nav_msgs::Odometry>("/odom3d__", 1);
+	ros::Subscriber sub_pose = nh.subscribe("/pose_dualekf", 1, callback_pose);
+	ros::Publisher pub = nh.advertise<nav_msgs::Odometry>("/odom3d", 1);
 
 	time_now = ros::Time::now();
 	time_last = ros::Time::now();

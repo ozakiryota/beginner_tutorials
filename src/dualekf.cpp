@@ -1,5 +1,5 @@
 /*
- * doubleekf.cpp
+ * dualekf.cpp
  *
  * X = |Φ Θ Ψ|^T
 */
@@ -28,9 +28,14 @@ Eigen::MatrixXd Xmain(num_state, 1);
 Eigen::MatrixXd Pmain(num_state, num_state);
 ros::Time time_now;
 ros::Time time_last;
+int count_usingwalls = 0;
+tf::Quaternion q_slam_now;
+tf::Quaternion q_slam_last;
 
 void input_pose(geometry_msgs::Pose& pose, Eigen::MatrixXd Mat)
 {
+	// std::cout << "INPUT POSE" << std::endl;
+	
 	tf::Quaternion q_ = tf::createQuaternionFromRPY(Mat(0, 0), Mat(1, 0), Mat(2, 0));
 	quaternionTFToMsg(q_, pose.orientation);
 
@@ -42,7 +47,47 @@ void input_pose(geometry_msgs::Pose& pose, Eigen::MatrixXd Mat)
 	// pose.position.z = 0.0;
 }
 
-int count_usingwalls = 0;
+void observation_main(void)
+{
+	// std::cout << "OBSERVATION MAIN" << std::endl;
+	
+	const int num_obs = 3;
+	
+	Eigen::MatrixXd Z(num_obs, 1);
+	Z <<	Xsub(0, 0),
+			Xsub(1, 0),
+			Xsub(2, 0);
+
+	Eigen::MatrixXd H(num_obs, num_state);
+	H <<	1,	0,	0,
+			0,	1,	0,
+			0, 	0,	1;
+
+	Eigen::MatrixXd jH(num_obs, num_state);
+	jH <<	1,	0,	0,
+			0,	1,	0,
+			0,	0,	1;
+
+	Eigen::MatrixXd R(num_obs, num_obs);
+	const double sigma = 1.0e-1;
+	R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
+
+	Eigen::MatrixXd Y(num_obs, 1);
+	Eigen::MatrixXd S(num_obs, num_obs);
+	Eigen::MatrixXd K(num_state, num_obs);
+	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_state, num_state);
+
+	Y = Z - H*Xmain;
+	for(int i=0;i<3;i++){
+		if(Y(i, 0)>M_PI)	Y(i, 0) -= 2.0*M_PI;
+		if(Y(i, 0)<-M_PI)	Y(i, 0) += 2.0*M_PI;
+	}
+	S = jH*Pmain*jH.transpose() + R;
+	K = Pmain*jH.transpose()*S.inverse();
+	Xmain = Xmain + K*Y;
+	Pmain = (I - K*jH)*Pmain;
+}
+
 void callback_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
 	const int num_obs = 3;
@@ -100,15 +145,17 @@ void callback_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
 
 		std::cout << "Y = " << std::endl << Y << std::endl;
 		std::cout << "K*Y = " << std::endl << K*Y << std::endl;
+		
+		observation_main();
 	}
 }
 
-tf::Quaternion q_slam_now;
-tf::Quaternion q_slam_last;
 void prediction_slam(void)
 {
-	tf::Quaternion q_relative_rotation = q_slam_now*q_slam_last.inverse();
-	q_relative_rotation = q_slam_last.inverse()*q_slam_now;
+	// std::cout << "PREDICTION SLAM" << std::endl;
+	
+	// tf::Quaternion q_relative_rotation = q_slam_now*q_slam_last.inverse();
+	tf::Quaternion q_relative_rotation = q_slam_last.inverse()*q_slam_now;
 	q_relative_rotation.normalize();
 
 	double roll = Xsub(0, 0);
@@ -117,13 +164,7 @@ void prediction_slam(void)
 
 	double delta_r, delta_p, delta_y;
 	tf::Matrix3x3(q_relative_rotation).getRPY(delta_r, delta_p, delta_y);
-	// Eigen::MatrixXd U(3, 1);
-	// U <<	delta_r,
-	//   		delta_p,
-	// 		delta_y;
-	Eigen::MatrixXd A = Eigen::MatrixXd::Identity(num_state, num_state);
-	Eigen::MatrixXd B = Eigen::MatrixXd::Identity(num_state, num_state);
-	// Eigen::MatrixXd F = A*Xsub + B*U;
+	
 	Eigen::MatrixXd F(num_state, 1);
 	F <<	roll + (delta_r + sin(roll)*tan(pitch)*delta_p + cos(roll)*tan(pitch)*delta_y),
 			pitch + (cos(roll)*delta_p - sin(roll)*delta_y),
@@ -149,15 +190,7 @@ void prediction_slam(void)
 	const double sigma = 1.0e-1;
 	Eigen::MatrixXd Q = sigma*Eigen::MatrixXd::Identity(num_state, num_state);
 
-	tf::Quaternion q_pose_tmp = q_pose;
-	q_pose = q_relative_rotation*q_pose_tmp;
-	// q_pose = q_pose_tmp*q_relative_rotation;
-	// q_pose = q_pose_tmp*q_relative_rotation*q_pose_tmp;
-
-	// // q_pose = (q_slam_now*q_slam_last_inv)*q_pose_tmp;
-	// // q_pose = q_pose_tmp*(q_slam_now*q_slam_last_inv);
-	// // q_pose = (q_slam_now*q_slam_last.inverse())*q_slam_last;
-	//
+	q_pose = q_pose*q_relative_rotation;
 	q_pose.normalize();
 	// tf::Matrix3x3(q_pose).getRPY(Xsub(0, 0), Xsub(1, 0), Xsub(2, 0));
 
@@ -169,9 +202,10 @@ void prediction_slam(void)
 	if(fabs(Xsub(0, 0))>M_PI) std::cout << "fabs(Xsub(0, 0))>M_PI" << std::endl;
 	if(fabs(Xsub(1, 0))>M_PI) std::cout << "fabs(Xsub(1, 0))>M_PI" << std::endl;
 	if(fabs(Xsub(2, 0))>M_PI) std::cout << "fabs(Xsub(2, 0))>M_PI" << std::endl;
+	
+	observation_main();
 }
 
-bool firstcallback = true;
 void callback_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 {
 	// std::cout << "CALLBACK SLAM" << std::endl;
@@ -181,16 +215,6 @@ void callback_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 	
 	if(inipose_is_available)	prediction_slam();
 	else	q_slam_last = q_slam_now;
-	
-	// if(firstcallback){
-	// 	q_slam_last = q_slam_now;
-	// 	tf::Matrix3x3(q_pose).getRPY(Xsub(0, 0), Xsub(1, 0), Xsub(2, 0));
-	// 	if(fabs(Xsub(0, 0))>M_PI) std::cout << "fabs(Xsub(0, 0))>M_PI" << std::endl;
-	// 	if(fabs(Xsub(1, 0))>M_PI) std::cout << "fabs(Xsub(1, 0))>M_PI" << std::endl;
-	// 	if(fabs(Xsub(2, 0))>M_PI) std::cout << "fabs(Xsub(2, 0))>M_PI" << std::endl;
-	// }
-	// else	prediction_slam();
-	// firstcallback = false;
 }
 
 void prediction_imu(double dt)
@@ -267,7 +291,7 @@ void callback_inipose(const geometry_msgs::QuaternionConstPtr& msg)
 
 int main(int argc, char**argv)
 {
-	ros::init(argc, argv, "doubleekf");
+	ros::init(argc, argv, "dualekf");
 	ros::NodeHandle nh;
 
 	/*time*/
@@ -276,13 +300,13 @@ int main(int argc, char**argv)
 
 	/*sub*/
 	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 1, callback_inipose);
-	// ros::Subscriber sub_bias = nh.subscribe("/imu_bias", 1, callback_bias);
-	// ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1, callback_imu);
+	ros::Subscriber sub_bias = nh.subscribe("/imu_bias", 1, callback_bias);
+	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1, callback_imu);
 	ros::Subscriber sub_obs1 = nh.subscribe("/g_usingwalls", 1, callback_usingwalls);
 	ros::Subscriber sub_obs2 = nh.subscribe("/lsd_slam/pose", 1, callback_slam);
 	
 	/*pub*/
-	ros::Publisher pub_pose = nh.advertise<geometry_msgs::Pose>("/pose_doubleekf", 1);
+	ros::Publisher pub_pose = nh.advertise<geometry_msgs::Pose>("/pose_dualekf", 1);
 
 	/*variables*/
 	geometry_msgs::Pose pose;
@@ -303,7 +327,7 @@ int main(int argc, char**argv)
 		input_pose(pose, Xsub);
 		// input_pose(pose, Xmain);
 		pub_pose.publish(pose);
-        //
+
 		loop_rate.sleep();
 	}
 }

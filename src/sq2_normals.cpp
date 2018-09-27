@@ -472,7 +472,7 @@ int main(int argc, char** argv)
 	local_nh.getParam("EST_POSEMSG_NAME", EST_POSEMSG_NAME);
 
 	/*sub & pub*/
-	ros::Subscriber sub_pose = nh.subscribe("/pose_doubleekf", 1, callback_pose);
+	ros::Subscriber sub_pose = nh.subscribe("/pose_dualekf", 1, callback_pose);
 	ros::Subscriber cloud_sub = nh.subscribe("/cloud/lcl", 1, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
@@ -482,7 +482,7 @@ int main(int argc, char** argv)
 	viewer.setBackgroundColor(1, 1, 1);
 	viewer.addCoordinateSystem(0.5, "axis");
 
-	// ros::Rate loop_rate(LOOP_RATE);
+	ros::Rate loop_rate(300);
 	while(ros::ok()){
 		if(!cloud->points.empty()&&g_local_is_available){
 			/*-----clouds------*/
@@ -522,14 +522,14 @@ int main(int argc, char** argv)
 			sensor_msgs::PointCloud2 roscloud_out;
 			pcl::toROSMsg(*cloud, roscloud_out);
 			// roscloud_out.header.frame_id = "/centerlaser";
-			roscloud_out.header.frame_id = "/odom3d_";
+			roscloud_out.header.frame_id = "/odom3d";
 			// roscloud_out.header.stamp = tm;
 			cloud_pub.publish(roscloud_out);
 
 			sensor_msgs::PointCloud2 rosnormals_out;
 			pcl::toROSMsg(*normals, rosnormals_out);
 			// rosnormals_out.header.frame_id = "/centerlaser";
-			rosnormals_out.header.frame_id = "/odom3d_";
+			rosnormals_out.header.frame_id = "/odom3d";
 			// rosnormals_out.header.stamp = tm;
 			normals_pub.publish(rosnormals_out);
 			
@@ -538,7 +538,7 @@ int main(int argc, char** argv)
 				sensor_msgs::PointCloud2 g_out;
 				pcl::toROSMsg(*g_vector, g_out);
 				// g_out.header.frame_id = "/centerlaser";
-				g_out.header.frame_id = "/odom3d_";
+				g_out.header.frame_id = "/odom3d";
 				g_pub.publish(g_out);
 			}
 
@@ -575,6 +575,6 @@ int main(int argc, char** argv)
 		}
 		ros::spinOnce();
 		viewer.spinOnce();
-		// loop_rate.sleep();
+		loop_rate.sleep();
 	}
 }

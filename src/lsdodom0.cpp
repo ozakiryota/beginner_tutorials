@@ -14,16 +14,14 @@ nav_msgs::Odometry odom3d_now;
 nav_msgs::Odometry odom3d_last;
 bool first_callback_odom = true;
 
-void callback_pose(const geometry_msgs::PoseConstPtr& msg)
+void callback_pose(const geometry_msgs::PoseStampedConstPtr& msg)
 {
 	// std::cout << "CALLBACK POSE" << std::endl;
-	odom3d_now.pose.pose.orientation = msg->orientation;
-
-	// tf::Quaternion q_test(msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
-	// double r, p, y;
-	// tf::Matrix3x3(q_test).getRPY(r, p, y);
-	// q_test = tf::createQuaternionFromRPY(0.0, 0.0, y);
-	// quaternionTFToMsg(q_test, odom3d_now.pose.pose.orientation);
+	// odom3d_now.pose.pose.orientation = msg->pose.orientation;
+	odom3d_now.pose.pose.orientation.x = msg->pose.orientation.z;
+	odom3d_now.pose.pose.orientation.y = -msg->pose.orientation.x;
+	odom3d_now.pose.pose.orientation.z = -msg->pose.orientation.y;
+	odom3d_now.pose.pose.orientation.w = msg->pose.orientation.w;
 }
 
 Eigen::MatrixXd frame_rotation(geometry_msgs::Quaternion q, Eigen::MatrixXd X, bool from_global_to_local)
@@ -40,10 +38,7 @@ Eigen::MatrixXd frame_rotation(geometry_msgs::Quaternion q, Eigen::MatrixXd X, b
 void callback_odom(const nav_msgs::OdometryConstPtr& msg)
 {
 	// std::cout << "CALLBACK ODOM" << std::endl;
-	if(first_callback_odom){
-		odom2d_last = *msg;
-		odom3d_last = odom3d_now;
-	}
+	if(first_callback_odom)	odom2d_last = *msg;
 	odom2d_now = *msg;
 	Eigen::MatrixXd Global2d(3, 1);
 	Global2d	<<	odom2d_now.pose.pose.position.x - odom2d_last.pose.pose.position.x,
@@ -59,6 +54,14 @@ void callback_odom(const nav_msgs::OdometryConstPtr& msg)
 	// std::cout << "Local2d = " << std::endl << Local2d << std::endl;
 	// std::cout << "Global3d = " << std::endl << Global3d << std::endl;
 
+	/*for test*/
+	// tf::Quaternion q_now(odom3d_now.pose.pose.orientation.x, odom3d_now.pose.pose.orientation.y, odom3d_now.pose.pose.orientation.z, odom3d_now.pose.pose.orientation.w);
+	// tf::Quaternion q_last(odom3d_last.pose.pose.orientation.x, odom3d_last.pose.pose.orientation.y, odom3d_last.pose.pose.orientation.z, odom3d_last.pose.pose.orientation.w);
+	// tf::Quaternion test = q_last.inverse()*q_last*q_now;
+	// test.normalize();
+	// quaternionTFToMsg(test, odom3d_now.pose.pose.orientation);
+	// std::cout << "odom3d_now.pose.pose.orientation = " << std::endl << odom3d_now.pose.pose.orientation << std::endl;
+
 	odom2d_last = odom2d_now;
 	odom3d_last = odom3d_now;
 	
@@ -71,7 +74,7 @@ void broadcast_tf(void)
     geometry_msgs::TransformStamped transform;
 	transform.header.stamp = ros::Time::now();
 	transform.header.frame_id = "/odom";
-	transform.child_frame_id = "/odom3d_";
+	transform.child_frame_id = "/lsdodom";
 	transform.transform.translation.x = odom3d_now.pose.pose.position.x;
 	transform.transform.translation.y = odom3d_now.pose.pose.position.y;
 	transform.transform.translation.z = odom3d_now.pose.pose.position.z;
@@ -82,7 +85,7 @@ void broadcast_tf(void)
 void initialize_odom(nav_msgs::Odometry& odom)
 {
 	odom.header.frame_id = "/odom";
-	odom.child_frame_id = "/odom3d_";
+	odom.child_frame_id = "/lsdodom";
 	odom.pose.pose.position.x = 0.0;
 	odom.pose.pose.position.y = 0.0;
 	odom.pose.pose.position.z = 0.0;
@@ -94,13 +97,12 @@ void initialize_odom(nav_msgs::Odometry& odom)
 
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "odom2dto3d_");
+	ros::init(argc, argv, "lsdodom");
 	ros::NodeHandle nh;
 
-	ros::Subscriber sub_odom = nh.subscribe("/odom", 1, callback_odom);
-	// ros::Subscriber sub_pose = nh.subscribe("/pose_imu_slam_walls", 1, callback_pose);
-	ros::Subscriber sub_pose = nh.subscribe("/pose_dualekf", 1, callback_pose);
-	ros::Publisher pub = nh.advertise<nav_msgs::Odometry>("/odom3d_", 1);
+	ros::Subscriber sub_odom = nh.subscribe("/odom", 10, callback_odom);
+	ros::Subscriber sub_pose = nh.subscribe("/lsd_slam/pose", 10, callback_pose);
+	ros::Publisher pub = nh.advertise<nav_msgs::Odometry>("/lsdodom", 1);
 
 	time_now = ros::Time::now();
 	time_last = ros::Time::now();
