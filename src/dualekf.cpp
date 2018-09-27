@@ -122,7 +122,7 @@ void callback_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
 				0,	0,	1;
 
 		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 1.0e-1;
+		const double sigma = 1.0e-0;
 		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 
 		Eigen::MatrixXd Y(num_obs, 1);
@@ -324,8 +324,8 @@ int main(int argc, char**argv)
 		// std::cout << "loop" << std::endl;
 		ros::spinOnce();
 
-		input_pose(pose, Xsub);
-		// input_pose(pose, Xmain);
+		// input_pose(pose, Xsub);
+		input_pose(pose, Xmain);
 		pub_pose.publish(pose);
 
 		loop_rate.sleep();
