@@ -329,7 +329,7 @@ int main(int argc, char**argv)
 	X = Eigen::MatrixXd::Constant(num_state, 1, 0.0);
 	P = 100.0*Eigen::MatrixXd::Identity(num_state, num_state);
 
-	// ros::Rate loop_rate(200);
+	ros::Rate loop_rate(200);
 	while(ros::ok())
 	{
 		double time = (ros::Time::now() - time_started).toSec();
@@ -346,13 +346,13 @@ int main(int argc, char**argv)
 		
 		ros::spinOnce();
 
-		// loop_rate.sleep();
+		loop_rate.sleep();
 	}
-	ros::Rate loop_rate(1);
+	ros::Rate loop_rate_(1);
 	while(ros::ok())
 	{
 		pub_inipose.publish(initial_pose);
 		pub_bias.publish(average);
-		loop_rate.sleep();
+		loop_rate_.sleep();
 	}
 }

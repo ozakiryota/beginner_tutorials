@@ -1,0 +1,26 @@
+<launch>
+	<param name="use_sim_time" value="true"/>
+
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/bagfile/infant/2017-10-18-10-42-27.bag"/>
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/bagfile/infant/2017&#45;11&#45;08&#45;14&#45;11&#45;09.bag.bag"/> -->
+
+	<node pkg="rviz" type="rviz" name="rviz" args="-d /home/amsl/.rviz/pose_comparison.rviz"/>
+
+	<include file="$(find velodyne_pointcloud)/launch/32e_points.launch"/>
+
+	<node pkg="beginner_tutorials" name="velodyne_fitting_walls" type="velodyne_fitting_walls" output="screen">
+		<!-- <param name="LOOP_RATE" value="10.0"/> -->
+		<param name="SEARCH_RADIUS" value="0.5"/>
+	    <param name="RANDOM_STEP_MAX" value="300"/>
+		<param name="THRESHOLD_REF_POINTS" value="50"/>
+		<param name="THRESHOLD_ANGLE_FROM_G" value="30.0"/>
+		<param name="THRESHOLD_SUM_SQUARE_ERRORS" value="0.001"/>
+	 	<param name="MIN_DISTANCE_BETWEEN_NORMSLS" value="0.1"/>
+		<param name="MIN_NUM_GROUPS" value="2"/>
+		<param name="FACTOR_1" value="1.0"/>    <!-- num_refpoints -->
+		<param name="FACTOR_2" value="0.001"/>  <!-- fitting_error -->
+		<param name="FACTOR_3" value="1.0"/>    <!-- ang_from_g_est -->
+		<param name="FACTOR_4" value="1.0"/>    <!-- num_groups -->
+		<!-- <param name="EST_POSEMSG_NAME" value="$(arg posemsg_name)"/> -->
+	</node>
+</launch>
