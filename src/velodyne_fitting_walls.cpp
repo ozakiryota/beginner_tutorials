@@ -13,6 +13,7 @@
 #include <geometry_msgs/Pose.h>
 // #include <Eigen/Core>
 #include <tf/tf.h>
+#include <pcl/common/transforms.h>
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 std::vector<float> g_local = {0.0, 0.0, -9.81};
@@ -181,11 +182,22 @@ float angle_between_vectors(std::vector<float> v1, std::vector<float> v2)
 	v1_norm = sqrt(v1_norm);
 	v2_norm = sqrt(v2_norm);
 	// std::cout << "return angle" << std::endl;
-	if(fabs(acosf(dot_product/(v1_norm*v2_norm)))>M_PI){
-		std::cout << "fabs(acosf(dot_product/(v1_norm*v2_norm)))>M_PI" << std::endl;
+	double angle = acosf(dot_product/(v1_norm*v2_norm));
+	// if(fabs(acosf(dot_product/(v1_norm*v2_norm)))>M_PI){
+	// 	std::cout << "fabs(acosf(dot_product/(v1_norm*v2_norm)))>M_PI" << std::endl;
+	// 	exit(1);
+	// }
+	if(angle>M_PI)	angle = 2*M_PI - angle;
+	if(fabs(angle)>M_PI){
+		std::cout << "v1 = " << v1[0] << ", " << v1[1] << ", " << v1[2] << std::endl;
+		std::cout << "v2 = " << v2[0] << ", " << v2[1] << ", " << v2[2] << std::endl;
+		std::cout << "v1_norm = " << v1_norm << std::endl;
+		std::cout << "v2_norm = " << v2_norm << std::endl;
+		std::cout << "dot_product = " << dot_product << std::endl;
+		std::cout << "fabs(angle) = " << angle << " >M_PI" << std::endl;
 		exit(1);
 	}
-	return fabs(acosf(dot_product/(v1_norm*v2_norm)));
+	return angle;
 }
 
 void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<FEATURES> features, pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere)
@@ -297,13 +309,13 @@ void clustering(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, std::vector<
 	}
 }
 
-std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointXYZ searchpoint)	//return neighbors' index
+std::vector<int> kdtree_search(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointXYZ searchpoint, double search_radius)	//return neighbors' index
 {
 	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
 	kdtree.setInputCloud(cloud);
 	std::vector<int> pointIdxRadiusSearch;
 	std::vector<float> pointRadiusSquaredDistance;
-	if(kdtree.radiusSearch(searchpoint, SEARCH_RADIUS, pointIdxRadiusSearch, pointRadiusSquaredDistance)<=0)	std::cout << "kdtree error" << std::endl;
+	if(kdtree.radiusSearch(searchpoint, search_radius, pointIdxRadiusSearch, pointRadiusSquaredDistance)<=0)	std::cout << "kdtree error" << std::endl;
 	return pointIdxRadiusSearch; 
 }
 
@@ -319,7 +331,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 		i += rand_step(mt);
 		if(i>=cloud->points.size())	break;
 		
-		if(cloud->points[i].z>-1.5 && cloud->points[i].z<-1.25){
+		if(cloud->points[i].z>-1.35 && cloud->points[i].z<-1.13){
 			std::cout << ">> cloud->points[i].z is out of the range, then skip" << std::endl;
 			continue;
 		}
@@ -335,8 +347,11 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 		searchpoint.y = cloud->points[i].y;
 		searchpoint.z = cloud->points[i].z;
 
-		// std::cout << "start finding kdtree" <<  std::endl;
-		std::vector<int> indices = kdtree_search(cloud, searchpoint);
+		double laser_distance = sqrt(searchpoint.x*searchpoint.x + searchpoint.y*searchpoint.y + searchpoint.z*searchpoint.z);
+
+		std::vector<int> indices;
+		if(laser_distance>10)	indices = kdtree_search(cloud, searchpoint, 1.0);
+		else	indices = kdtree_search(cloud, searchpoint, SEARCH_RADIUS);
 		// std::cout << "indices.size() = " << indices.size() << std::endl;
 		if(indices.size()<THRESHOLD_REF_POINTS){
 			std::cout << ">> indices.size() = " << indices.size() << " < " << THRESHOLD_REF_POINTS << ", then skip" << std::endl;
@@ -413,14 +428,17 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 	std::cout << "-----CLOUD CALLBACK-----" << std::endl;
 	// pcl::fromROSMsg(*msg, *cloud);
 	
-	if(false){
-		pcl::PointCloud<pcl::PointXYZ>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::fromROSMsg(*msg, *tmp);
-		for(size_t i=0;i<tmp->points.size();i++){
-			if(tmp->points[i].z<0.0 || tmp->points[i].z>0.35)	cloud->points.push_back(tmp->points[i]);
-		}
+	pcl::fromROSMsg(*msg, *cloud);
+
+	if(true){
+		const double theta = -M_PI/2.0;
+		Eigen::Matrix4f Rot;
+		Rot <<	cos(theta),	-sin(theta),	0,	0,
+				sin(theta),	cos(theta),	0,	0,
+				0,	0,	1,	0,
+				0,	0,	0,	0;
+		pcl::transformPointCloud(*cloud, *cloud, Rot);
 	}
-	else	pcl::fromROSMsg(*msg, *cloud);
 }
 
 Eigen::MatrixXd frame_rotation(geometry_msgs::Quaternion q, Eigen::MatrixXd X, bool from_global_to_local)
@@ -445,6 +463,7 @@ void callback_pose(const geometry_msgs::PoseConstPtr& msg)
 	G_local = frame_rotation(msg->orientation, G_global, true);
 	g_local = {G_local(0, 0), G_local(1, 0), G_local(2, 0)};
 
+	std::cout << "g_local = " << g_local[0] << ", " << g_local[1] << ", " << g_local[2] << ", "  << std::endl;
 	// std::cout << "G_local = " << std::endl << G_local << std::endl;
 
 	g_local_is_available = true;
@@ -473,7 +492,7 @@ int main(int argc, char** argv)
 	local_nh.getParam("EST_POSEMSG_NAME", EST_POSEMSG_NAME);
 
 	/*sub & pub*/
-	// ros::Subscriber sub_pose = nh.subscribe("/pose_dualekf", 1, callback_pose);
+	ros::Subscriber sub_pose = nh.subscribe("/pose_dualekf", 1, callback_pose);
 	ros::Subscriber cloud_sub = nh.subscribe("/velodyne_points", 1, cloud_callback);
 	ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/cloud",1);
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
@@ -483,7 +502,7 @@ int main(int argc, char** argv)
 	viewer.setBackgroundColor(1, 1, 1);
 	viewer.addCoordinateSystem(0.5, "axis");
 
-	ros::Rate loop_rate(300);
+	ros::Rate loop_rate(50);
 	while(ros::ok()){
 		if(!cloud->points.empty()&&g_local_is_available){
 			/*-----clouds------*/
@@ -523,14 +542,14 @@ int main(int argc, char** argv)
 			sensor_msgs::PointCloud2 roscloud_out;
 			pcl::toROSMsg(*cloud, roscloud_out);
 			// roscloud_out.header.frame_id = "/centerlaser";
-			roscloud_out.header.frame_id = "/velodyne";
+			roscloud_out.header.frame_id = "/odom3d_with_posemsg";
 			// roscloud_out.header.stamp = tm;
 			cloud_pub.publish(roscloud_out);
 
 			sensor_msgs::PointCloud2 rosnormals_out;
 			pcl::toROSMsg(*normals, rosnormals_out);
 			// rosnormals_out.header.frame_id = "/centerlaser";
-			rosnormals_out.header.frame_id = "/velodyne";
+			rosnormals_out.header.frame_id = "/odom3d_with_posemsg";
 			// rosnormals_out.header.stamp = tm;
 			normals_pub.publish(rosnormals_out);
 			
@@ -539,7 +558,7 @@ int main(int argc, char** argv)
 				sensor_msgs::PointCloud2 g_out;
 				pcl::toROSMsg(*g_vector, g_out);
 				// g_out.header.frame_id = "/centerlaser";
-				g_out.header.frame_id = "/velodyne";
+				g_out.header.frame_id = "/odom3d_with_posemsg";
 				g_pub.publish(g_out);
 			}
 
@@ -550,7 +569,7 @@ int main(int argc, char** argv)
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 
 			viewer.removePointCloud("normals");
-			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals_flipped, 1, 0.5, "normals");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal, pcl::PointXYZINormal>(normals, normals_flipped, 1, 0.8, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals");
 			
@@ -560,12 +579,12 @@ int main(int argc, char** argv)
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g");
 			
 			viewer.removePointCloud("normals_before_clustering");
-			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_before_clustering, 1, 0.3, "normals_before_clustering");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_before_clustering, 1, 0.5, "normals_before_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 1.0, "normals_before_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, "normals_before_clustering");
 			
 			viewer.removePointCloud("normals_after_clustering");
-			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_after_clustering, 1, 0.2, "normals_after_clustering");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_after_clustering, 1, 0.3, "normals_after_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "normals_after_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, "normals_after_clustering");
 			

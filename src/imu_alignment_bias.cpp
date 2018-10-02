@@ -236,7 +236,7 @@ void prediction(void)
 bool judge_moving(void)
 {
 	const float threshold_w = 0.03;
-	const float threshold_a = 0.07;
+	const float threshold_a = 0.20;
 	if(fabs(record[record.size()-1].angular_velocity.x - average.angular_velocity.x)>threshold_w){
 		std::cout << "Moved-wx" << std::endl;
 		return true;
@@ -337,6 +337,7 @@ int main(int argc, char**argv)
 		const double timelimit = 180.0;
 		if(imu_is_moving || time>timelimit){
 			if(time>timelimit)	std::cout << "time > " << timelimit << "[s]" << std::endl;
+			else	std::cout << "Moved at" << time << "[s]" << std::endl;
 			input_initialpose();
 			break;
 		}

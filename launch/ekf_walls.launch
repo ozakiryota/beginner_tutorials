@@ -66,7 +66,8 @@
 
 	<!-- <node pkg="beginner_tutorials" name="tf_lsdslam" type="tf_lsdslam"/> -->
 	
-	<node pkg="beginner_tutorials" name="dualekf" type="dualekf" output="screen"/>
+	<!-- <node pkg="beginner_tutorials" name="dualekf" type="dualekf" output="screen"/> -->
+	<node pkg="beginner_tutorials" name="ekf" type="ekf" output="screen"/>
 
 	<!-- <node pkg="beginner_tutorials" name="odom2dto3d" type="odom2dto3d"/> -->
 	<!-- <node pkg="beginner_tutorials" name="odom2dto3d_" type="odom2dto3d_"/> -->
@@ -78,11 +79,11 @@
 	<node pkg="beginner_tutorials" name="graph_rpy.py" type="graph_rpy.py"/>
 	<!-- <node pkg="beginner_tutorials" name="graph_imu.py" type="graph_imu.py"/> -->
 
-	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/2018&#45;05&#45;08&#45;19&#45;45&#45;05.bag"/> -->
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/2018-05-08-19-45-05.bag"/>
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018&#45;08&#45;27&#45;11&#45;32&#45;51.bag"/> -->
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018&#45;09&#45;13&#45;13&#45;13&#45;56.bag"/> -->
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018&#45;09&#45;14&#45;14&#45;34&#45;50.bag"/> -->
-	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018-09-22-12-08-36.bag"/>
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/sqlidar_realsense/2018&#45;09&#45;22&#45;12&#45;08&#45;36.bag"/> -->
 	
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/sq2/2018&#45;09&#45;24&#45;14&#45;33&#45;49.bag"/>	<!&#45;&#45; 655sで一周 &#45;&#45;> -->
 

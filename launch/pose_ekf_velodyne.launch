@@ -1,0 +1,42 @@
+<launch>
+	<param name="use_sim_time" value="true"/>
+
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018&#45;10&#45;02&#45;14&#45;58&#45;29.bag"/> -->
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018-10-02-16-53-16.bag -s 150"/>
+
+	<node pkg="rviz" type="rviz" name="rviz" args="-d /home/amsl/.rviz/pose_comparison.rviz"/>
+
+	<include file="$(find velodyne_pointcloud)/launch/32e_points.launch"/>
+	
+	<!-- <node pkg="image_transport" type="republish" name="republish" args="compressed in:=/camera/color/image_raw/compressed raw out:=/camera/color/image_raw"/> -->
+	<node pkg="image_transport" type="republish" name="republish" args="compressed raw">
+		<remap from="in" to="/camera/color/image_raw"/>
+		<remap from="out" to="/camera/color/image_raw"/>
+	</node>
+
+	<node pkg="beginner_tutorials" name="velodyne_fitting_walls" type="velodyne_fitting_walls">
+		<!-- <param name="LOOP_RATE" value="10.0"/> -->
+		<param name="SEARCH_RADIUS" value="0.5"/>
+	    <param name="RANDOM_STEP_MAX" value="200"/>
+		<param name="THRESHOLD_REF_POINTS" value="40"/>
+		<param name="THRESHOLD_ANGLE_FROM_G" value="30.0"/>
+		<param name="THRESHOLD_SUM_SQUARE_ERRORS" value="0.0001"/>
+	 	<param name="MIN_DISTANCE_BETWEEN_NORMSLS" value="0.1"/>
+		<param name="MIN_NUM_GROUPS" value="3"/>
+		<param name="FACTOR_1" value="1.0"/>    <!-- num_refpoints -->
+		<param name="FACTOR_2" value="0.001"/>  <!-- fitting_error -->
+		<param name="FACTOR_3" value="1.0"/>    <!-- ang_from_g_est -->
+		<param name="FACTOR_4" value="1.0"/>    <!-- num_groups -->
+		<!-- <param name="EST_POSEMSG_NAME" value="$(arg posemsg_name)"/> -->
+	</node>
+
+	<node pkg="beginner_tutorials" name="imu_alignment_bias" type="imu_alignment_bias" output="screen"/>
+
+	<node pkg="beginner_tutorials" name="ekf" type="ekf" output="screen"/>
+
+	<node pkg="beginner_tutorials" name="odom3d_with_posemsg" type="odom3d_with_posemsg"/>
+	<node pkg="beginner_tutorials" name="gyrodometry3d" type="gyrodometry3d"/>
+	<node pkg="beginner_tutorials" name="lsd_odom" type="lsd_odom"/>
+
+	<node pkg="beginner_tutorials" name="graph_rpy.py" type="graph_rpy.py"/>
+</launch>
