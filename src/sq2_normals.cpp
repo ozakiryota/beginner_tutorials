@@ -348,7 +348,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 		std::cout << "curvature = " << curvature << std::endl;
 		std::vector<float> tmp_vector = {plane_parameters[0], plane_parameters[1], plane_parameters[2]};
 		float tmp_ang_from_g_local = angle_between_vectors(tmp_vector, g_local);
-		if(tmp_ang_from_g_local<THRESHOLD_ANGLE_FROM_G/180.0*M_PI || tmp_ang_from_g_local>(M_PI-THRESHOLD_ANGLE_FROM_G/180.0*M_PI)){
+		if(fabs(tmp_ang_from_g_local-M_PI/2.0)>THRESHOLD_ANGLE_FROM_G/180.0*M_PI){
 			std::cout << ">> tmp_ang_from_g_local is too small or large, then skip" << std::endl;
 			continue;
 		}

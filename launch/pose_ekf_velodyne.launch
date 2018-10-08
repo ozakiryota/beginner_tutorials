@@ -2,13 +2,19 @@
 	<param name="use_sim_time" value="true"/>
 
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018&#45;10&#45;02&#45;14&#45;58&#45;29.bag"/> -->
-	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018-10-02-16-53-16.bag -s 150"/>
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018&#45;10&#45;02&#45;16&#45;53&#45;16.bag &#45;s 150"/> -->
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018&#45;10&#45;03&#45;08&#45;01&#45;37.bag &#45;s 150"/> -->
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018&#45;10&#45;03&#45;10&#45;18&#45;43.bag"/>	<!&#45;&#45; 2周 SLAM不調 &#45;&#45;> -->
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018-10-06-12-14-59.bag"/>	<!-- 3周 -->
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018&#45;10&#45;06&#45;14&#45;36&#45;06.bag"/>	<!&#45;&#45; キャンパス全体 途中つまずく &#45;&#45;> -->
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018&#45;10&#45;06&#45;16&#45;30&#45;57.bag"/>	<!&#45;&#45; キャンパス全体 途中で死亡 &#45;&#45;> -->
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018&#45;10&#45;07&#45;14&#45;08&#45;04.bag"/>	<!&#45;&#45; 英検  &#45;&#45;> -->
 
-	<node pkg="rviz" type="rviz" name="rviz" args="-d /home/amsl/.rviz/pose_comparison.rviz"/>
+	<!-- <node pkg="rviz" type="rviz" name="rviz" args="&#45;d /home/amsl/.rviz/pose_comparison.rviz"/> -->
+	<node pkg="rviz" type="rviz" name="rviz" args="-d /home/amsl/.rviz/pose_comparison_forvideo.rviz"/>
 
 	<include file="$(find velodyne_pointcloud)/launch/32e_points.launch"/>
 	
-	<!-- <node pkg="image_transport" type="republish" name="republish" args="compressed in:=/camera/color/image_raw/compressed raw out:=/camera/color/image_raw"/> -->
 	<node pkg="image_transport" type="republish" name="republish" args="compressed raw">
 		<remap from="in" to="/camera/color/image_raw"/>
 		<remap from="out" to="/camera/color/image_raw"/>
@@ -17,8 +23,8 @@
 	<node pkg="beginner_tutorials" name="velodyne_fitting_walls" type="velodyne_fitting_walls">
 		<!-- <param name="LOOP_RATE" value="10.0"/> -->
 		<param name="SEARCH_RADIUS" value="0.5"/>
-	    <param name="RANDOM_STEP_MAX" value="200"/>
-		<param name="THRESHOLD_REF_POINTS" value="40"/>
+	    <param name="RANDOM_STEP_MAX" value="400"/>
+		<param name="THRESHOLD_REF_POINTS" value="50"/>
 		<param name="THRESHOLD_ANGLE_FROM_G" value="30.0"/>
 		<param name="THRESHOLD_SUM_SQUARE_ERRORS" value="0.0001"/>
 	 	<param name="MIN_DISTANCE_BETWEEN_NORMSLS" value="0.1"/>
@@ -38,5 +44,5 @@
 	<node pkg="beginner_tutorials" name="gyrodometry3d" type="gyrodometry3d"/>
 	<node pkg="beginner_tutorials" name="lsd_odom" type="lsd_odom"/>
 
-	<node pkg="beginner_tutorials" name="graph_rpy.py" type="graph_rpy.py"/>
+	<node pkg="beginner_tutorials" name="graph_rpy" type="graph_rpy.py"/>
 </launch>

@@ -331,7 +331,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 		i += rand_step(mt);
 		if(i>=cloud->points.size())	break;
 		
-		if(cloud->points[i].z>-1.35 && cloud->points[i].z<-1.13){
+		if(cloud->points[i].z>-1.35 && cloud->points[i].z<-1.05){
 			std::cout << ">> cloud->points[i].z is out of the range, then skip" << std::endl;
 			continue;
 		}
@@ -363,7 +363,7 @@ void plane_fitting(pcl::PointCloud<pcl::PointXYZINormal>::Ptr normals, pcl::Poin
 		std::cout << "curvature = " << curvature << std::endl;
 		std::vector<float> tmp_vector = {plane_parameters[0], plane_parameters[1], plane_parameters[2]};
 		float tmp_ang_from_g_local = angle_between_vectors(tmp_vector, g_local);
-		if(tmp_ang_from_g_local<THRESHOLD_ANGLE_FROM_G/180.0*M_PI || tmp_ang_from_g_local>(M_PI-THRESHOLD_ANGLE_FROM_G/180.0*M_PI)){
+		if(fabs(tmp_ang_from_g_local-M_PI/2.0)>THRESHOLD_ANGLE_FROM_G/180.0*M_PI){
 			std::cout << ">> tmp_ang_from_g_local is too small or large, then skip" << std::endl;
 			continue;
 		}
@@ -430,7 +430,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg)
 	
 	pcl::fromROSMsg(*msg, *cloud);
 
-	if(true){
+	if(false){
 		const double theta = -M_PI/2.0;
 		Eigen::Matrix4f Rot;
 		Rot <<	cos(theta),	-sin(theta),	0,	0,
@@ -574,7 +574,7 @@ int main(int argc, char** argv)
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "normals");
 			
 			viewer.removePointCloud("g");
-			viewer.addPointCloudNormals<pcl::PointNormal>(g_vector, 1, 0.2, "g");
+			viewer.addPointCloudNormals<pcl::PointNormal>(g_vector, 1, 1.0, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 1.0, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g");
 			
@@ -584,7 +584,7 @@ int main(int argc, char** argv)
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, "normals_before_clustering");
 			
 			viewer.removePointCloud("normals_after_clustering");
-			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_after_clustering, 1, 0.3, "normals_after_clustering");
+			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_after_clustering, 1, 1.0, "normals_after_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "normals_after_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, "normals_after_clustering");
 			

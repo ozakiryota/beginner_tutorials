@@ -100,6 +100,11 @@ void callback_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
 		K(2, 2) = 0.0;	//temporary repair
 		X = X + K*Y;
 		P = (I - K*jH)*P;
+		
+		for(int i=0;i<3;i++){
+			if(X(i, 0)>M_PI)	X(i, 0) -= 2.0*M_PI;
+			if(X(i, 0)<-M_PI)	X(i, 0) += 2.0*M_PI;
+		}
 
 		std::cout << "Y = " << std::endl << Y << std::endl;
 		std::cout << "K*Y = " << std::endl << K*Y << std::endl;
@@ -136,7 +141,7 @@ void callback_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 				0,	1,	0,
 				0,	0,	1;
 		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 1.0e+2;
+		const double sigma = 1.0e+3;
 		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
 		Eigen::MatrixXd Y(num_obs, 1);
 		Eigen::MatrixXd S(num_obs, num_obs);
@@ -152,6 +157,11 @@ void callback_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 		K = P*jH.transpose()*S.inverse();
 		X = X + K*Y;
 		P = (I - K*jH)*P;
+		
+		for(int i=0;i<3;i++){
+			if(X(i, 0)>M_PI)	X(i, 0) -= 2.0*M_PI;
+			if(X(i, 0)<-M_PI)	X(i, 0) += 2.0*M_PI;
+		}
 
 		if(count_slam%1000==0){
 			std::cout << count_slam << ": CALLBACK SLAM" << std::endl;
@@ -272,6 +282,7 @@ int main(int argc, char**argv)
 		// std::cout << "loop" << std::endl;
 		ros::spinOnce();
 
+		std::cout << "X = " << std::endl << X << std::endl;
 		input_pose(pose, X);
 		pub_pose.publish(pose);
 
