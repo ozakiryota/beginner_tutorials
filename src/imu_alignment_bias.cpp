@@ -334,7 +334,7 @@ int main(int argc, char**argv)
 	{
 		double time = (ros::Time::now() - time_started).toSec();
 		if(record.size()==0)	time = 0.0;
-		const double timelimit = 180.0;
+		const double timelimit = 120.0;
 		if(imu_is_moving || time>timelimit){
 			if(time>timelimit)	std::cout << "time > " << timelimit << "[s]" << std::endl;
 			else	std::cout << "Moved at" << time << "[s]" << std::endl;

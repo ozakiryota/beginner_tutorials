@@ -18,6 +18,7 @@ nav_msgs::Odometry odom_last;
 Eigen::MatrixXd Position;
 tf::Quaternion q_pose;
 sensor_msgs::Imu bias;
+sensor_msgs::Imu imu_last;
 
 void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 {
@@ -42,7 +43,36 @@ void callback_imu(const sensor_msgs::ImuConstPtr& msg)
 		q_pose.normalize();
 		quaternionTFToMsg(q_pose, odom_now.pose.pose.orientation);
 	}
+
+	if(false)	odom_now.pose.pose.orientation = msg->orientation;
+}
+
+void callback_imu_(const sensor_msgs::ImuConstPtr& msg)
+{
+	// std::cout << "CALLBACK IMU" << std::endl;
 	
+	time_now_imu = ros::Time::now();
+	double dt = (time_now_imu - time_last_imu).toSec();
+	time_last_imu = time_now_imu;
+	
+	if(inipose_is_available){
+		double delta_r = (msg->angular_velocity.x + imu_last.angular_velocity.x)*dt/2.0;
+		double delta_p = (msg->angular_velocity.y + imu_last.angular_velocity.y)*dt/2.0;
+		double delta_y = (msg->angular_velocity.z + imu_last.angular_velocity.z)*dt/2.0;
+		if(bias_is_available){
+			delta_r -= bias.angular_velocity.x*dt;
+			delta_p -= bias.angular_velocity.y*dt;
+			delta_y -= bias.angular_velocity.z*dt;
+		}
+
+		tf::Quaternion q_relative_rotation = tf::createQuaternionFromRPY(delta_r, delta_p, delta_y);
+		q_pose = q_pose*q_relative_rotation;
+		q_pose.normalize();
+		quaternionTFToMsg(q_pose, odom_now.pose.pose.orientation);
+	}
+
+	imu_last = *msg;
+
 	if(false)	odom_now.pose.pose.orientation = msg->orientation;
 }
 
@@ -135,7 +165,8 @@ int main(int argc, char** argv)
 
 	ros::Subscriber sub_odom = nh.subscribe("/odom", 1, callback_odom);
 	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 1, callback_inipose);
-	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1, callback_imu);
+	// ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1, callback_imu);
+	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1, callback_imu_);
 	ros::Subscriber sub_bias = nh.subscribe("/imu_bias", 1, callback_bias);
 	ros::Publisher pub = nh.advertise<nav_msgs::Odometry>("/gyrodometry3d", 1);
 
@@ -149,7 +180,7 @@ int main(int argc, char** argv)
 	initialize_odom(odom_last);
 	initialize_odom(odom_now);
 
-	ros::Rate loop_rate(100);
+	ros::Rate loop_rate(200);
 	while(ros::ok()){
 		ros::spinOnce();
 		pub.publish(odom_now);

@@ -288,4 +288,6 @@ target_link_libraries(velodyne_fitting_walls ${catkin_LIBRARIES} ${PCL_LIBRARIES
 add_executable(pc_fitting_walls src/pc_fitting_walls.cpp)
 target_link_libraries(pc_fitting_walls ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(quaternion_convertor src/quaternion_convertor.cpp)
-target_link_libraries(quaternion_convertor ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(quaternion_convertor ${catkin_LIBRARIES})
+add_executable(odom_printer src/odom_printer.cpp)
+target_link_libraries(odom_printer ${catkin_LIBRARIES})

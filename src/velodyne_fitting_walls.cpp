@@ -91,6 +91,23 @@ void create_another_normal(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere)
 	normal_sphere->points.push_back(another_n);
 }
 
+void vector_projection(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::PointCloud<pcl::PointNormal>::Ptr g_vector)
+{
+	double norm_n = sqrt(normal_sphere->points[0].x*normal_sphere->points[0].x + normal_sphere->points[0].y*normal_sphere->points[0].y + normal_sphere->points[0].z*normal_sphere->points[0].z);
+	normal_sphere->points[0].x /= norm_n;
+	normal_sphere->points[0].y /= norm_n;
+	normal_sphere->points[0].z /= norm_n;
+
+	double dot = normal_sphere->points[0].x*g_local[0] + normal_sphere->points[0].y*g_local[1] + normal_sphere->points[0].z*g_local[2];
+	g_vector->points[0].normal_x = g_local[0] - dot*normal_sphere->points[0].x;
+	g_vector->points[0].normal_y = g_local[1] - dot*normal_sphere->points[0].y;
+	g_vector->points[0].normal_z = g_local[2] - dot*normal_sphere->points[0].z;
+	double norm_g = sqrt(g_vector->points[0].normal_x*g_vector->points[0].normal_x + g_vector->points[0].normal_y*g_vector->points[0].normal_y + g_vector->points[0].normal_z*g_vector->points[0].normal_z);
+	g_vector->points[0].normal_x /= norm_g;
+	g_vector->points[0].normal_y /= norm_g;
+	g_vector->points[0].normal_z /= norm_g;
+}
+
 bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::PointCloud<pcl::PointNormal>::Ptr g_vector)
 {
 	std::cout << "-----ESTIMATE G_VECTOR-----" << std::endl;
@@ -102,17 +119,20 @@ bool estimate_g_vector(pcl::PointCloud<pcl::PointXYZ>::Ptr normal_sphere, pcl::P
 		std::cout << "Failed because normal_sphere has no normal" << std::endl;	
 		return false;
 	}
-
-	if(normal_sphere->points.size()==1){
-		std::cout << "normal_sphere has just one normal" << std::endl;
-		create_another_normal(normal_sphere);
-	}
-	else	std::cout << "normal_sphere has more than 2 normals" << std::endl;
-
+	
 	/*the center of Gauss Sphere*/
 	g_vector->points[0].x = 0;
 	g_vector->points[0].y = 0;
 	g_vector->points[0].z = 1.0;
+
+	if(normal_sphere->points.size()==1){
+		std::cout << "normal_sphere has just one normal" << std::endl;
+		// create_another_normal(normal_sphere);
+		vector_projection(normal_sphere, g_vector);
+		return true;
+	}
+	else	std::cout << "normal_sphere has more than 2 normals" << std::endl;
+
 
 	std::cout << "normal_sphere->points.size() = " << normal_sphere->points.size() << std::endl;
 	if(normal_sphere->points.size()==2){
@@ -498,7 +518,7 @@ int main(int argc, char** argv)
 	ros::Publisher normals_pub = nh.advertise<sensor_msgs::PointCloud2>("/test/normals",1);
 	ros::Publisher g_pub = nh.advertise<sensor_msgs::PointCloud2>("/g_usingwalls",1);
 
-	pcl::visualization::PCLVisualizer viewer("Point Cloud Viewer");
+	pcl::visualization::PCLVisualizer viewer("PCL Gaussian Sphere");
 	viewer.setBackgroundColor(1, 1, 1);
 	viewer.addCoordinateSystem(0.5, "axis");
 
@@ -577,17 +597,17 @@ int main(int argc, char** argv)
 			viewer.addPointCloudNormals<pcl::PointNormal>(g_vector, 1, 1.0, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 1.0, "g");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "g");
-			
+
 			viewer.removePointCloud("normals_before_clustering");
 			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_before_clustering, 1, 0.5, "normals_before_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 1.0, "normals_before_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, "normals_before_clustering");
-			
+
 			viewer.removePointCloud("normals_after_clustering");
 			viewer.addPointCloudNormals<pcl::PointXYZINormal>(normals_after_clustering, 1, 1.0, "normals_after_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "normals_after_clustering");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, "normals_after_clustering");
-			
+
 			viewer.removePointCloud("g_last");
 			viewer.addPointCloudNormals<pcl::PointNormal>(g_last, 1, 0.03, "g_last");
 			viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.5, 0.5, "g_last");

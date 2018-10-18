@@ -95,9 +95,9 @@ void callback_usingwalls(const sensor_msgs::PointCloud2ConstPtr& msg)
 		}
 		S = jH*P*jH.transpose() + R;
 		K = P*jH.transpose()*S.inverse();
-		K(2, 0) = 0.0;	//temporary repair
-		K(2, 1) = 0.0;	//temporary repair
-		K(2, 2) = 0.0;	//temporary repair
+		// K(2, 0) = 0.0;	//temporary repair
+		// K(2, 1) = 0.0;	//temporary repair
+		// K(2, 2) = 0.0;	//temporary repair
 		X = X + K*Y;
 		P = (I - K*jH)*P;
 		
@@ -141,11 +141,11 @@ void callback_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 				0,	1,	0,
 				0,	0,	1;
 		Eigen::MatrixXd R(num_obs, num_obs);
-		const double sigma = 5.0e+5;
+		const double sigma = 1.0e-0;
 		R = sigma*Eigen::MatrixXd::Identity(num_obs, num_obs);
-		R <<	5.0e+5,	0, 0,
-		  		0,	5.0e+5,	0,
-				0,	0,	1.0e-1;
+		R <<	5.0e+1,	0, 0,
+		  		0,	5.0e+1,	0,
+				0,	0,	5.0e-0;
 		Eigen::MatrixXd Y(num_obs, 1);
 		Eigen::MatrixXd S(num_obs, num_obs);
 		Eigen::MatrixXd K(num_state, num_obs);
@@ -170,7 +170,6 @@ void callback_slam(const geometry_msgs::PoseStampedConstPtr& msg)
 			std::cout << count_slam << ": CALLBACK SLAM" << std::endl;
 			std::cout << "Y = " << std::endl << Y << std::endl;
 			std::cout << "K*Y = " << std::endl << K*Y << std::endl;
-			std::cout << "P = " << std::endl << P << std::endl;
 		}
 		q_pose = tf::createQuaternionFromRPY(X(0, 0), X(1, 0), X(2, 0));
 	}
@@ -211,12 +210,12 @@ void prediction_imu(double dt)
 	for(int i=0;i<num_state;i++){
 		for(int j=0;j<num_state;j++)    jF(i, j) = dfdx[i][j];
 	}
-	// std::cout << "jF = " << std::endl << jF << std::endl;
+	std::cout << "jF = " << std::endl << jF << std::endl;
 	const double sigma = 1.0e-1;
 	Eigen::MatrixXd Q = sigma*Eigen::MatrixXd::Identity(num_state, num_state);
 	Q <<	1.0e-1,	0, 0,
 	 		0,	1.0e-1,	0,
-			0,	0,	5.0e+5;
+			0,	0,	1.0e+0;
 	
 	// X = F;
 	// for(int i=0;i<3;i++){
@@ -277,7 +276,7 @@ int main(int argc, char**argv)
 	ros::Subscriber sub_inipose = nh.subscribe("/initial_pose", 1, callback_inipose);
 	ros::Subscriber sub_bias = nh.subscribe("/imu_bias", 1, callback_bias);
 	ros::Subscriber sub_imu = nh.subscribe("/imu/data", 1, callback_imu);
-	ros::Subscriber sub_obs1 = nh.subscribe("/g_usingwalls", 1, callback_usingwalls);
+	// ros::Subscriber sub_obs1 = nh.subscribe("/g_usingwalls", 1, callback_usingwalls);
 	ros::Subscriber sub_obs2 = nh.subscribe("/lsd_slam/pose", 1, callback_slam);
 	
 	/*pub*/

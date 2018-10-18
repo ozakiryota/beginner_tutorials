@@ -10,7 +10,7 @@
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018&#45;10&#45;06&#45;16&#45;30&#45;57.bag"/>	<!&#45;&#45; キャンパス全体 途中で死亡 &#45;&#45;> -->
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/velodyne_realsense/2018&#45;10&#45;07&#45;14&#45;08&#45;04.bag"/>	<!&#45;&#45; 英検  &#45;&#45;> -->
 
-	<!-- <node pkg="rviz" type="rviz" name="rviz" args="&#45;d /home/amsl/.rviz/pose_comparison.rviz"/> -->
+	<node pkg="rviz" type="rviz" name="rviz_skyview" args="-d /home/amsl/.rviz/pose_comparison.rviz"/>
 	<node pkg="rviz" type="rviz" name="rviz" args="-d /home/amsl/.rviz/pose_comparison_forvideo.rviz"/>
 
 	<include file="$(find velodyne_pointcloud)/launch/32e_points.launch"/>
@@ -23,7 +23,7 @@
 	<node pkg="beginner_tutorials" name="velodyne_fitting_walls" type="velodyne_fitting_walls">
 		<!-- <param name="LOOP_RATE" value="10.0"/> -->
 		<param name="SEARCH_RADIUS" value="0.5"/>
-	    <param name="RANDOM_STEP_MAX" value="400"/>
+	    <param name="RANDOM_STEP_MAX" value="350"/>
 		<param name="THRESHOLD_REF_POINTS" value="50"/>
 		<param name="THRESHOLD_ANGLE_FROM_G" value="30.0"/>
 		<param name="THRESHOLD_SUM_SQUARE_ERRORS" value="0.0001"/>
