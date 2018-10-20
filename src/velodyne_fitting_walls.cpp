@@ -207,7 +207,8 @@ float angle_between_vectors(std::vector<float> v1, std::vector<float> v2)
 	// 	std::cout << "fabs(acosf(dot_product/(v1_norm*v2_norm)))>M_PI" << std::endl;
 	// 	exit(1);
 	// }
-	if(angle>M_PI)	angle = 2*M_PI - angle;
+
+	// if(angle>M_PI)	angle = 2*M_PI - angle;
 	if(fabs(angle)>M_PI){
 		std::cout << "v1 = " << v1[0] << ", " << v1[1] << ", " << v1[2] << std::endl;
 		std::cout << "v2 = " << v2[0] << ", " << v2[1] << ", " << v2[2] << std::endl;
