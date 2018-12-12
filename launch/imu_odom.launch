@@ -1,21 +1,9 @@
 <launch>
 	<param name="use_sim_time" value="true" />
 
-	<!-- <node pkg="beginner_tutorials" name="imu_alignment" type="imu_alignment" output="screen"/> -->
-	<!-- <node pkg="beginner_tutorials" name="imu_alignment_simple" type="imu_alignment_simple" output="screen"/> -->
-	<!-- <node pkg="beginner_tutorials" name="imu_alignment_nomove" type="imu_alignment_nomove" output="screen"/> -->
-	<node pkg="beginner_tutorials" name="imu_alignment_bias" type="imu_alignment_bias" output="screen"/>
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/sq2/2018-12-11-13-37-56.bag"/>
 	
-	<node pkg="beginner_tutorials" name="imu_odom" type="imu_odom" output="screen">
-		<param name="PARENT_FRAME" value="/odom"/>
-	</node>
-		
-	<node pkg="beginner_tutorials" name="graph.py" type="graph.py"/>
-		
-	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ros_catkin_ws/bagfiles/xsens_mti30_aa&#45;oq&#45;wr1.bag"/> -->
-	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/2018-05-08-19-45-05.bag"/>
-	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/nomove_5min_20180816.bag &#45;r 30"/> -->
+	<node pkg="beginner_tutorials" name="imu_odom" type="imu_odom" output="screen"/>
 
-	<node pkg="rviz" type="rviz" name="rviz"/>
-
+	<node pkg="rviz" type="rviz" name="rviz" args="-d /home/amsl/.rviz/imu_odom.rviz"/>
 </launch>
