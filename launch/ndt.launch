@@ -1,0 +1,13 @@
+<launch>
+	<!-- global rosparam -->
+	<param name="use_sim_time" value="true"/>
+
+	<!-- rosbag -->
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/infant/2018-12-12-18-38-39.bag -s 50"/>
+	<!-- sensor driver -->
+	<include file="$(find velodyne_pointcloud)/launch/32e_points.launch"/>
+	<!-- main -->
+	<node pkg="pose_estimation_walls" name="odom_republish_infant" type="odom_republish_infant"/>
+	<node pkg="beginner_tutorials" name="ndt" type="ndt" output="screen"/>
+</launch>
+
