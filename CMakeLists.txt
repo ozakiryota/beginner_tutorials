@@ -298,3 +298,5 @@ target_link_libraries(test_least_squares_method ${catkin_LIBRARIES} ${PCL_LIBRAR
 find_package(kdl_conversions)
 add_executable(ndt src/ndt.cpp)
 target_link_libraries(ndt ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(test_ndt src/test_ndt.cpp)
+target_link_libraries(test_ndt ${catkin_LIBRARIES} ${PCL_LIBRARIES})
