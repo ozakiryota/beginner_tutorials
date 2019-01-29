@@ -150,7 +150,7 @@ void NDT::Transformation(void)
 	ndt.setStepSize(0.1);
 	ndt.setResolution(1.0);
 	// ndt.setMaximumIterations(35);
-	ndt.setMaximumIterations(100);
+	ndt.setMaximumIterations(1000);
 	ndt.setInputSource(filtered_input);
 	ndt.setInputTarget(filtered_target);
 
@@ -255,7 +255,7 @@ int main(int argc, char** argv)
 
 	// ros::spin();
 
-	ros::Rate loop_rate(1);
+	ros::Rate loop_rate(0.1);
 	while(ros::ok()){
 		ros::spinOnce();
 		loop_rate.sleep();

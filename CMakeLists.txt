@@ -300,3 +300,9 @@ add_executable(ndt src/ndt.cpp)
 target_link_libraries(ndt ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(test_ndt src/test_ndt.cpp)
 target_link_libraries(test_ndt ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+
+add_dependencies(imu_alignment_ beginner_tutorials_generate_messages_cpp)
+add_dependencies(imu_alignment_nomove beginner_tutorials_generate_messages_cpp)
+add_dependencies(imu_alignment_simple beginner_tutorials_generate_messages_cpp)
+add_dependencies(imu_alignment beginner_tutorials_generate_messages_cpp)
