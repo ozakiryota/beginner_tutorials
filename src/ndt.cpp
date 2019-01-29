@@ -35,12 +35,13 @@ class NDT{
 		ros::Time time_last_odom;
 		/*flags*/
 		bool first_callback_odom = true;
-		bool is_transforemed = false;
+		// bool is_transforemed = false;
 	public:
 		NDT();
 		void InitializeOdom(nav_msgs::Odometry& odom);
 		void CallbackPC(const sensor_msgs::PointCloud2ConstPtr& msg);
 		void CallbackOdom(const nav_msgs::OdometryConstPtr& msg);
+		void Compute(void);
 		void Transformation(double dt);
 		Eigen::Quaternionf QuatMsgToEigen(geometry_msgs::Quaternion q_msg);
 		geometry_msgs::Quaternion QuatEigenToMsg(Eigen::Quaternionf q_eigen);
@@ -80,8 +81,10 @@ void NDT::CallbackPC(const sensor_msgs::PointCloud2ConstPtr &msg)
 		pcl::fromROSMsg(*msg, *cloud_now);
 		*cloud_last = *cloud_now;
 	}
-	if(is_transforemed)	*cloud_last = *cloud_now;
-	pcl::fromROSMsg(*msg, *cloud_now);
+	else{
+		*cloud_last = *cloud_now;
+		pcl::fromROSMsg(*msg, *cloud_now);
+	}
 
 	pcl::PassThrough<pcl::PointXYZ> pass;
 	pass.setInputCloud(cloud_now);
@@ -93,28 +96,42 @@ void NDT::CallbackPC(const sensor_msgs::PointCloud2ConstPtr &msg)
 	pass.setFilterLimits(-50,50);
 	pass.filter(*cloud_now);
 
-	is_transforemed = false;
+	// is_transforemed = false;
 }
 
 void NDT::CallbackOdom(const nav_msgs::OdometryConstPtr& msg)
 {
 	std::cout << "CALLBACK ODOM" << std::endl;
-	odom_now = *msg;
 
-	time_now_odom = ros::Time::now();
-	double dt = (time_now_odom - time_last_odom).toSec();
-	time_last_odom = time_now_odom;
-	if(first_callback_odom)	dt = 0.0;
-
-	if(!first_callback_odom && !is_transforemed){
-		Transformation(dt);
-		is_transforemed = true;
-		Visualization();
-		Publication();
+	// double dt = (time_now_odom - time_last_odom).toSec();
+	if(first_callback_odom){
+		odom_now = *msg;
+		time_now_odom = ros::Time::now();
+		time_last_odom = time_now_odom;
+	}
+	else{
+		odom_last = odom_now;
+		odom_now = *msg;
+		time_last_odom = time_now_odom;
+		time_now_odom = ros::Time::now();
 	}
 
-	odom_last = odom_now;
+	// if(!first_callback_odom && !is_transforemed){
+	// 	Transformation(dt);
+	// 	is_transforemed = true;
+	// 	Visualization();
+	// 	Publication();
+	// }
+
 	first_callback_odom = false;
+}
+
+void NDT::Compute(void)
+{
+	double dt = (time_now_odom - time_last_odom).toSec();
+	Transformation(dt);
+	Visualization();
+	Publication();
 }
 
 void NDT::Transformation(double dt)
@@ -222,11 +239,12 @@ int main(int argc, char** argv)
 	
 	NDT ndt;
 
-	ros::spin();
+	// ros::spin();
 
-	// ros::Rate loop_rate(0.5);
-	// while(ros::ok()){
-	// 	ros::spinOnce();
-	// 	loop_rate.sleep();
-	// }
+	ros::Rate loop_rate(0.5);
+	while(ros::ok()){
+		ros::spinOnce();
+		loop_rate.sleep();
+		ndt.compute();
+	}
 }
