@@ -4,8 +4,9 @@
 
 	<!-- rosbag -->
 	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/infant/2019&#45;01&#45;29&#45;15&#45;34&#45;33.bag"/> -->
-	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/infant/2019&#45;01&#45;29&#45;15&#45;37&#45;09.bag"/> -->
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/mocap/0127_infant/2019&#45;01&#45;27&#45;19&#45;23&#45;10.bag"/> -->
 	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/infant_mocap/2018-12-09-14-40-09.bag -s 60"/>
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/mocap/0126_infant/no_lsd/2019&#45;01&#45;26&#45;15&#45;41&#45;30.bag"/> -->
 
 	<!-- sensor driver -->
 	<include file="$(find velodyne_pointcloud)/launch/32e_points.launch"/>

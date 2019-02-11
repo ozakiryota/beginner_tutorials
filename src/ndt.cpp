@@ -91,18 +91,16 @@ void NDT::CallbackPC(const sensor_msgs::PointCloud2ConstPtr &msg)
 		pcl::fromROSMsg(*msg, *cloud_now);
 	}
 
-	const double range = 20;
-	pcl::PassThrough<pcl::PointXYZ> pass;
-	pass.setInputCloud(cloud_now);
-	pass.setFilterFieldName("x");
-	pass.setFilterLimits(-range, range);
-	pass.filter(*cloud_now);
-	pass.setInputCloud(cloud_now);
-	pass.setFilterFieldName("y");
-	pass.setFilterLimits(-range, range);
-	pass.filter(*cloud_now);
-
-	// is_transforemed = false;
+	// const double range = 45;
+	// pcl::PassThrough<pcl::PointXYZ> pass;
+	// pass.setInputCloud(cloud_now);
+	// pass.setFilterFieldName("x");
+	// pass.setFilterLimits(-range, range);
+	// pass.filter(*cloud_now);
+	// pass.setInputCloud(cloud_now);
+	// pass.setFilterFieldName("y");
+	// pass.setFilterLimits(-range, range);
+	// pass.filter(*cloud_now);
 }
 
 void NDT::CallbackOdom(const nav_msgs::OdometryConstPtr& msg)
@@ -144,7 +142,8 @@ void NDT::Transformation(void)
 	
 	/*set parameters*/
 	pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt;
-	ndt.setTransformationEpsilon(0.01);
+	// ndt.setTransformationEpsilon(0.01);
+	ndt.setTransformationEpsilon(0.001);
 	ndt.setStepSize(0.1);
 	// ndt.setResolution(1.0);
 	ndt.setResolution(0.5);
@@ -182,23 +181,24 @@ void NDT::Transformation(void)
 	/*convert to /odom*/
 	Eigen::Matrix4f m_transformation = ndt.getFinalTransformation();
 	Eigen::Matrix3f m_rot = m_transformation.block(0, 0, 3, 3);
-	m_rot = m_rot.inverse();
 	Eigen::Quaternionf q_rot(m_rot);
 	q_rot.normalize();
+	q_rot = q_rot.inverse();
 	Eigen::Quaternionf q_pose = QuatMsgToEigen(odom_ndt.pose.pose.orientation);
-	// q_pose = q_pose*q_rot;
-	// q_pose.normalize();
-	odom_ndt.pose.pose.orientation = QuatEigenToMsg((q_pose*q_rot).normalized());
+	q_pose = q_pose*q_rot;
+	q_pose.normalize();
+	// odom_ndt.pose.pose.orientation = QuatEigenToMsg((q_pose*q_rot).normalized());
+	odom_ndt.pose.pose.orientation = QuatEigenToMsg(q_pose);
 
-	double roll, pitch, yaw;
-	tf::Matrix3x3 tmp(
-		m_rot(0,0),	m_rot(0,1), m_rot(0,2),
-		m_rot(1,0),	m_rot(1,1),	m_rot(1,2),
-		m_rot(2,0),	m_rot(2,1),	m_rot(2,2)
-	);
-	tmp.getRPY(roll, pitch, yaw);
-	std::cout << "RPY: " << roll/M_PI*180 << ", " << pitch/M_PI*180 << ", " << yaw/M_PI*180 << std::endl;
-	geometry_msgs::Quaternion q_ = tf::createQuaternionMsgFromRollPitchYaw(roll, pitch, yaw);
+	// double roll, pitch, yaw;
+	// tf::Matrix3x3 tmp(
+	// 	m_rot(0,0),	m_rot(0,1), m_rot(0,2),
+	// 	m_rot(1,0),	m_rot(1,1),	m_rot(1,2),
+	// 	m_rot(2,0),	m_rot(2,1),	m_rot(2,2)
+	// );
+	// tmp.getRPY(roll, pitch, yaw);
+	// std::cout << "RPY: " << roll/M_PI*180 << ", " << pitch/M_PI*180 << ", " << yaw/M_PI*180 << std::endl;
+	// geometry_msgs::Quaternion q_ = tf::createQuaternionMsgFromRollPitchYaw(roll, pitch, yaw);
 
 	Eigen::Quaternionf q_trans(
 		0.0,
@@ -243,11 +243,11 @@ void NDT::Visualization(void)
 	viewer.removeAllPointClouds();
 
 	viewer.addPointCloud<pcl::PointXYZ>(cloud_now, "cloud_now");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "cloud_now");
+	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "cloud_now");
 	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, "cloud_now");
 
 	viewer.addPointCloud<pcl::PointXYZ>(cloud_last, "cloud_last");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "cloud_last");
+	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "cloud_last");
 	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, "cloud_last");
 
 	// viewer.addPointCloud<pcl::PointXYZ>(filtered_input, "filtered_input");
@@ -255,7 +255,7 @@ void NDT::Visualization(void)
 	// viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.5, "filtered_input");
 
 	viewer.addPointCloud<pcl::PointXYZ>(filtered_target, "filtered_target");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 0.0, "filtered_target");
+	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 1.0, "filtered_target");
 	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.5, "filtered_target");
 
 	// viewer.addPointCloudNormals<pcl::PointNormal>(init_guess_point, 1, 1.0, "init_guess_point");
