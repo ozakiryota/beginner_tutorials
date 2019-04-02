@@ -11,34 +11,39 @@
 #include <pcl/filters/approximate_voxel_grid.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <pcl/filters/passthrough.h>
+#include <tf/transform_broadcaster.h>
 
 class NDT{
 	private:
 		ros::NodeHandle nh;
+		ros::NodeHandle nhPrivate;
 		/*subscribe*/
 		ros::Subscriber sub_pc;
 		ros::Subscriber sub_odom;
 		/*publish*/
 		ros::Publisher pub_odom;
+		tf::TransformBroadcaster tf_broadcaster;
 		/*viewer*/
 		pcl::visualization::PCLVisualizer viewer{"ndt"};
 		/*cloud*/
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_now {new pcl::PointCloud<pcl::PointXYZ>};
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_last {new pcl::PointCloud<pcl::PointXYZ>};
-		pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_input {new pcl::PointCloud<pcl::PointXYZ>};
-		pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_target {new pcl::PointCloud<pcl::PointXYZ>};
-		pcl::PointCloud<pcl::PointNormal>::Ptr init_guess_point {new pcl::PointCloud<pcl::PointNormal>};
-		pcl::PointCloud<pcl::PointNormal>::Ptr final_point {new pcl::PointCloud<pcl::PointNormal>};
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_transformed {new pcl::PointCloud<pcl::PointXYZ>};
 		/*odom*/
 		nav_msgs::Odometry odom_ndt;
 		nav_msgs::Odometry odom_now;
 		nav_msgs::Odometry odom_last;
-		/*time*/
-		// ros::Time time_now_odom;
-		// ros::Time time_last_odom;
 		/*flags*/
 		bool first_callback_odom = true;
-		// bool is_transforemed = false;
+		/*time*/
+		ros::Time time_start;
+		/*parameters*/
+		double pc_range;
+		double leafsize;
+		double epsilon;
+		double stepsize;
+		double resolution;
+		double iterations;
 	public:
 		NDT();
 		void InitializeOdom(nav_msgs::Odometry& odom);
@@ -53,25 +58,37 @@ class NDT{
 };
 
 NDT::NDT()
+	:nhPrivate("~")
 {
-	// sub_pc = nh.subscribe("/velodyne_points", 1, &NDT::CallbackPC, this);
-	sub_pc = nh.subscribe("/rm_ground2", 1, &NDT::CallbackPC, this);
-	sub_odom = nh.subscribe("/tinypower/odom/republished", 1, &NDT::CallbackOdom, this);
-	pub_odom = nh.advertise<nav_msgs::Odometry>("/odom_ndt", 1);
+	// sub_pc = nh.subscribe("/rm_ground2", 1, &NDT::CallbackPC, this);
+	sub_pc = nh.subscribe("/velodyne_points", 1, &NDT::CallbackPC, this);
+	sub_odom = nh.subscribe("/gyrodometry", 1, &NDT::CallbackOdom, this);
+	pub_odom = nh.advertise<nav_msgs::Odometry>("/ndt_odometry", 1);
 	viewer.setBackgroundColor(1, 1, 1);
 	viewer.addCoordinateSystem(0.5, "axis");
 	viewer.setCameraPosition(0.0, 0.0, 80.0, 0.0, 0.0, 0.0);
 	InitializeOdom(odom_ndt);
 	InitializeOdom(odom_now);
 	InitializeOdom(odom_last);
-	init_guess_point->points.resize(1);
-	final_point->points.resize(1);
+
+	nhPrivate.param("pc_range", pc_range, {100.0});
+	nhPrivate.param("leafsize", leafsize, {0.1});
+	nhPrivate.param("epsilon", epsilon, {0.01});
+	nhPrivate.param("stepsize", stepsize, {0.01});
+	nhPrivate.param("resolution", resolution, {0.8});
+	nhPrivate.param("iterations", iterations, {35});
+	std::cout << "pc_range = " << pc_range << std::endl;
+	std::cout << "leafsize = " << leafsize << std::endl;
+	std::cout << "epsilon = " << epsilon << std::endl;
+	std::cout << "stepsize = " << stepsize << std::endl;
+	std::cout << "resolution = " << resolution << std::endl;
+	std::cout << "iterations = " << iterations << std::endl;
 }
 
 void NDT::InitializeOdom(nav_msgs::Odometry& odom)
 {
 	odom.header.frame_id = "/odom";
-	odom.child_frame_id = "/odom_ndt";
+	odom.child_frame_id = "/ndt_odometry";
 	odom.pose.pose.position.x = 0.0;
 	odom.pose.pose.position.y = 0.0;
 	odom.pose.pose.position.z = 0.0;
@@ -93,52 +110,40 @@ void NDT::CallbackPC(const sensor_msgs::PointCloud2ConstPtr &msg)
 		*cloud_last = *cloud_now;
 		pcl::fromROSMsg(*msg, *cloud_now);
 	}
+	std::cout << "msg->header.stamp.toSec()-time_start.toSec() = " << msg->header.stamp.toSec()-time_start.toSec() << std::endl;
 
-	const double range = 20;
 	pcl::PassThrough<pcl::PointXYZ> pass;
 	pass.setInputCloud(cloud_now);
 	pass.setFilterFieldName("x");
-	pass.setFilterLimits(-range, range);
+	pass.setFilterLimits(-pc_range, pc_range);
 	pass.filter(*cloud_now);
 	pass.setInputCloud(cloud_now);
 	pass.setFilterFieldName("y");
-	pass.setFilterLimits(-range, range);
+	pass.setFilterLimits(-pc_range, pc_range);
 	pass.filter(*cloud_now);
-
-	// is_transforemed = false;
 }
 
 void NDT::CallbackOdom(const nav_msgs::OdometryConstPtr& msg)
 {
 	std::cout << "CALLBACK ODOM" << std::endl;
 
-	// double dt = (time_now_odom - time_last_odom).toSec();
 	if(first_callback_odom){
 		odom_now = *msg;
 		odom_last = odom_now;
-		// time_now_odom = ros::Time::now();
-		// time_last_odom = time_now_odom;
+		time_start = ros::Time::now();
 	}
 	else{
 		odom_last = odom_now;
 		odom_now = *msg;
-		// time_last_odom = time_now_odom;
-		// time_now_odom = ros::Time::now();
 	}
-
-	// if(!first_callback_odom && !is_transforemed){
-	// 	Transformation(dt);
-	// 	is_transforemed = true;
-	// 	Visualization();
-	// 	Publication();
-	// }
+	std::cout << "msg->header.stamp.toSec()-time_start.toSec() = " << msg->header.stamp.toSec()-time_start.toSec() << std::endl;
 
 	first_callback_odom = false;
 }
 
 void NDT::Compute(void)
 {
-	// double dt = (time_now_odom - time_last_odom).toSec();
+	std::cout << "COMPUTE" << std::endl;
 	Transformation();
 	Visualization();
 	Publication();
@@ -146,27 +151,25 @@ void NDT::Compute(void)
 
 void NDT::Transformation(void)
 {
-	pcl::ApproximateVoxelGrid<pcl::PointXYZ> approximate_voxel_filter;
-	approximate_voxel_filter.setLeafSize(0.5, 0.5, 0.5);
-	approximate_voxel_filter.setInputCloud(cloud_now);
-	approximate_voxel_filter.filter(*filtered_input);
-	approximate_voxel_filter.setInputCloud(cloud_last);
-	approximate_voxel_filter.filter(*filtered_target);
-
+	/*down sampling*/
+	pcl::ApproximateVoxelGrid<pcl::PointXYZ> approximate_voxel_filter_input;
+	approximate_voxel_filter_input.setLeafSize(leafsize, leafsize, leafsize);
+	approximate_voxel_filter_input.setInputCloud(cloud_now);
+	approximate_voxel_filter_input.filter(*cloud_now);
+	
+	/*set parameters*/
 	pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt;
-	ndt.setTransformationEpsilon(0.001);
-	ndt.setStepSize(0.1);
-	// ndt.setResolution(1.0);
-	ndt.setResolution(3.0);
-	ndt.setMaximumIterations(35);
-	// ndt.setInputSource(filtered_input);
-	// ndt.setInputTarget(filtered_target);
-	ndt.setInputSource(filtered_target);
-	ndt.setInputTarget(filtered_input);
+	ndt.setTransformationEpsilon(epsilon);
+	// ndt.setEuclideanFitnessEpsilon(1.0e-8);
+	ndt.setStepSize(stepsize);
+	ndt.setResolution(resolution);
+	ndt.setMaximumIterations(iterations);
+	ndt.setInputSource(cloud_now);
+	ndt.setInputTarget(cloud_last);
 
+	/*initial guess*/
 	Eigen::Quaternionf q_pose_now = QuatMsgToEigen(odom_now.pose.pose.orientation);
 	Eigen::Quaternionf q_pose_last = QuatMsgToEigen(odom_last.pose.pose.orientation);
-	// Eigen::Quaternionf q_relative_rotation = q_pose_now*q_pose_last.inverse();
 	Eigen::Quaternionf q_relative_rotation = q_pose_last.inverse()*q_pose_now;
 	q_relative_rotation.normalize();
 	Eigen::Quaternionf q_global_move(
@@ -178,67 +181,31 @@ void NDT::Transformation(void)
 	Eigen::Translation3f init_translation(q_local_move.x(), q_local_move.y(), q_local_move.z());
 	Eigen::AngleAxisf init_rotation(q_relative_rotation);
 	Eigen::Matrix4f init_guess = (init_translation*init_rotation).matrix();
-	// ndt.align(*filtered_input, init_guess);
-	ndt.align(*filtered_input);
 
-	std::cout << "init_guess" << std::endl << init_guess << std::endl;
-	std::cout << "init_rotation" << std::endl;
-	std::cout << init_rotation.angle() << std::endl;
-	std::cout << init_rotation.axis() << std::endl;
-	init_guess_point->points[0].x = init_guess(0, 3);
-	init_guess_point->points[0].y = init_guess(1, 3);
-	init_guess_point->points[0].z = init_guess(2, 3);
-	Eigen::Quaternionf q_orient(0, 1, 0, 0);
-	q_orient = q_relative_rotation*q_orient*q_relative_rotation.inverse();
-	init_guess_point->points[0].normal_x = q_orient.x();
-	init_guess_point->points[0].normal_y = q_orient.y();
-	init_guess_point->points[0].normal_z = q_orient.z();
+	/*align*/
+	ndt.align(*cloud_transformed, init_guess);
+	// ndt.align(*cloud_transformed);
 
+	/*print*/
 	std::cout << "Normal Distributions Transform has converged:" << ndt.hasConverged () 
 		<< std::endl << " score: " << ndt.getFitnessScore () << std::endl;
 	std::cout << "ndt.getFinalTransformation()" << std::endl << ndt.getFinalTransformation() << std::endl;
+	std::cout << "init_guess" << std::endl << init_guess << std::endl;
 
+	/*convert to /odom*/
 	Eigen::Matrix4f m_transformation = ndt.getFinalTransformation();
-	// m_transformation = m_transformation.inverse();	//test
-
 	Eigen::Matrix3f m_rot = m_transformation.block(0, 0, 3, 3);
-	// Eigen::Quaternionf q_rot(m_rot);
-	Eigen::Quaternionf q_rot(m_rot.inverse());
+	Eigen::Quaternionf q_rot(m_rot);
 	q_rot.normalize();
 	Eigen::Quaternionf q_pose = QuatMsgToEigen(odom_ndt.pose.pose.orientation);
-	q_pose = q_pose*q_rot;
-	q_pose.normalize();
-	odom_ndt.pose.pose.orientation = QuatEigenToMsg(q_pose);
+	odom_ndt.pose.pose.orientation = QuatEigenToMsg((q_pose*q_rot).normalized());
 
-	double roll, pitch, yaw;
-	tf::Matrix3x3 tmp(
-		m_rot(0,0),	m_rot(0,1), m_rot(0,2),
-		m_rot(1,0),	m_rot(1,1),	m_rot(1,2),
-		m_rot(2,0),	m_rot(2,1),	m_rot(2,2)
-		);
-	tmp.getRPY(roll, pitch, yaw);
-	std::cout << "RPY: " << roll/M_PI*180 << ", " << pitch/M_PI*180 << ", " << yaw/M_PI*180 << std::endl;
-	geometry_msgs::Quaternion q_ = tf::createQuaternionMsgFromRollPitchYaw(roll, pitch, yaw);
-
-	// Eigen::Quaternionf q_trans(
-	// 	0.0,
-	// 	m_transformation(0, 3),
-	// 	m_transformation(1, 3),
-	// 	m_transformation(2, 3));
 	Eigen::Quaternionf q_trans(
 		0.0,
-		-m_transformation(0, 3),
-		-m_transformation(1, 3),
-		-m_transformation(2, 3));
-	final_point->points[0].x = q_trans.x();
-	final_point->points[0].y = q_trans.y();
-	final_point->points[0].z = q_trans.z();
-	Eigen::Quaternionf q_orient_(0, 1, 0, 0);
-	q_orient_ = q_rot*q_orient_*q_rot.inverse();
-	final_point->points[0].normal_x = q_orient.x();
-	final_point->points[0].normal_y = q_orient.y();
-	final_point->points[0].normal_z = q_orient.z();
-
+		m_transformation(0, 3),
+		m_transformation(1, 3),
+		m_transformation(2, 3)
+	);
 	q_trans = q_pose*q_trans*q_pose.inverse();
 	std::cout << q_trans.x() << std::endl;
 	std::cout << q_trans.y() << std::endl;
@@ -249,12 +216,14 @@ void NDT::Transformation(void)
 	odom_ndt.pose.pose.position.z += q_trans.z();
 }
 
-Eigen::Quaternionf NDT::QuatMsgToEigen(geometry_msgs::Quaternion q_msg){
+Eigen::Quaternionf NDT::QuatMsgToEigen(geometry_msgs::Quaternion q_msg)
+{
 	Eigen::Quaternionf q_eigen(
 		(float)q_msg.w,
 		(float)q_msg.x,
 		(float)q_msg.y,
-		(float)q_msg.z);
+		(float)q_msg.z
+	);
 	q_eigen.normalize();
 	return q_eigen;
 }
@@ -281,29 +250,29 @@ void NDT::Visualization(void)
 	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 1.0, 0.0, "cloud_last");
 	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, "cloud_last");
 
-	viewer.addPointCloud<pcl::PointXYZ>(filtered_input, "filtered_input");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 1.0, "filtered_input");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.5, "filtered_input");
+	viewer.addPointCloud<pcl::PointXYZ>(cloud_transformed, "cloud_transformed");
+	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 1.0, "cloud_transformed");
+	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, "cloud_transformed");
 
-	viewer.addPointCloud<pcl::PointXYZ>(filtered_target, "filtered_target");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 0.0, "filtered_target");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5.0, "filtered_target");
-
-	viewer.addPointCloudNormals<pcl::PointNormal>(init_guess_point, 1, 1.0, "init_guess_point");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 0.0, "init_guess_point");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "init_guess_point");
-
-	viewer.addPointCloudNormals<pcl::PointNormal>(final_point, 1, 1.0, "final_point");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "final_point");
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "final_point");
-	
 	viewer.spinOnce();
 }
 
 void NDT::Publication(void)
 {
-	odom_ndt.header.stamp = ros::Time::now();
+	/*publish*/
+	// odom_ndt.header.stamp = ros::Time::now();
+	odom_ndt.header.stamp = odom_now.header.stamp;
 	pub_odom.publish(odom_ndt);
+	/*tf broadcast*/
+    geometry_msgs::TransformStamped transform;
+	transform.header.stamp = ros::Time::now();
+	transform.header.frame_id = "/odom";
+	transform.child_frame_id = "/ndt_odometry";
+	transform.transform.translation.x = odom_ndt.pose.pose.position.x;
+	transform.transform.translation.y = odom_ndt.pose.pose.position.y;
+	transform.transform.translation.z = odom_ndt.pose.pose.position.z;
+	transform.transform.rotation = odom_ndt.pose.pose.orientation;
+	tf_broadcaster.sendTransform(transform);
 }
 
 int main(int argc, char** argv)
@@ -314,10 +283,13 @@ int main(int argc, char** argv)
 
 	// ros::spin();
 
-	ros::Rate loop_rate(10);
+	ros::Rate loop_rate(20);
 	while(ros::ok()){
+		std::cout << "----------" << std::endl;
 		ros::spinOnce();
-		loop_rate.sleep();
+		double time_start = ros::Time::now().toSec();
 		ndt.Compute();
+		std::cout << "computation time: " << ros::Time::now().toSec() - time_start  << "[s]" << std::endl;
+		loop_rate.sleep();
 	}
 }

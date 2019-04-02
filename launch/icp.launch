@@ -21,15 +21,11 @@
 		<remap from="/odom" to="/tinypower/odom/republished"/>
 	</node>
 	<node pkg="pose_estimation_walls" name="odom_republish_infant" type="odom_republish_infant"/>
-	<!-- <node pkg="beginner_tutorials" name="ndt" type="ndt" output="screen"/> -->
-	<node pkg="beginner_tutorials" name="ndt_" type="ndt_" output="screen">
+	<node pkg="beginner_tutorials" name="icp" type="icp" output="screen">
 		<!-- <remap from="/velodyne_points" to="/rm_ground2"/> -->
-		<param name="pc_range" type="double" value="15.0"/>
-		<param name="leafsize" type="double" value="0.2"/>
-		<!-- <param name="epsilon" type="double" value="1.0e&#45;3"/> -->
-		<param name="epsilon" type="double" value="1.0e-5"/>
-		<param name="stepsize" type="double" value="1.0e-5"/>
-		<param name="resolution" type="double" value="1.0"/>
+		<param name="pc_range" type="double" value="100.0"/>
+		<param name="trans_epsilon" type="double" value="1.0e-8"/>
+		<param name="fit_epsilon" type="double" value="1.0e-8"/>
 		<param name="iterations" type="int" value="35"/>
 	</node>
 	
