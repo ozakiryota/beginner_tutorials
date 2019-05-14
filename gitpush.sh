@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -ne 1 ]; then
-	comment="$1"
+	comment="comment: $1"
 	echo $1
 else
 	comment="updated"
