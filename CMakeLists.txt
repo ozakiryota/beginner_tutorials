@@ -21,6 +21,12 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
 find_package(HDF5 REQUIRED)
+##### OpenMP #####
+find_package(OpenMP REQUIRED)
+if(OpenMP_FOUND)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -59,6 +65,8 @@ find_package(HDF5 REQUIRED)
 add_message_files(
    FILES
    imudata.msg
+   PointWithRange.msg
+   PointWithRangeArray.msg
 #   Message1.msg
 #   Message2.msg
 )
@@ -304,6 +312,10 @@ add_executable(test_ndt src/test_ndt.cpp)
 target_link_libraries(test_ndt ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(icp src/icp.cpp)
 target_link_libraries(icp ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(test_for_loop src/test_for_loop.cpp)
+target_link_libraries(test_for_loop ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(euclidean_clustering_test src/euclidean_clustering_test.cpp)
+target_link_libraries(euclidean_clustering_test ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 
 add_dependencies(imu_alignment_ beginner_tutorials_generate_messages_cpp)
